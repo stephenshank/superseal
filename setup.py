@@ -19,7 +19,8 @@ setup(
         'scipy==1.1.0',
         'pysam==0.15.2',
         'networkx==2.3',
-        'numpy==1.16.4'
+        'numpy==1.16.4',
+        'flask==1.1.1'
     ],
     tests_require=dev_dependencies,
     extras_require={

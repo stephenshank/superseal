@@ -18,6 +18,7 @@ python setup.py install
 cqsr_ec -b sorted.bam -o output
 cqsr_rg -i output -o output
 cqsr_qr -i output -o output
+cqsr_viz -o output
 ```
 
 ## Test

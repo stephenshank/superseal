@@ -4,6 +4,7 @@ import argparse
 from .io import error_correction_io
 from .io import read_graph_io
 from .io import regression_io
+from .viz import show_viz
 
 
 ec_description = '''
@@ -319,5 +320,4 @@ def visualization():
     )
 
     args = parser.parse_args()
-
-    print('TODO: Implement visualization module for:', args.output)
+    show_viz(args.output)

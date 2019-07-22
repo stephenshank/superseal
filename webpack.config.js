@@ -1,15 +1,21 @@
 const path = require("path"),
-  MiniCssExtractPlugin = require('mini-css-extract-plugin');
+  HtmlWebpackPlugin = require("html-webpack-plugin"),
+  MiniCssExtractPlugin = require("mini-css-extract-plugin");
+
+
+const static_dir = path.resolve(__dirname, "convex_qsr", "static"),
+  port = 8123;
 
 module.exports = {
   entry: path.resolve("viz", "app.jsx"),
   output: {
-    path: path.resolve(__dirname, "convex_qsr", "static"),
+    path: static_dir,
     filename: "main.js"
   },
   plugins: [
+    new HtmlWebpackPlugin(),
     new MiniCssExtractPlugin({
-      filename: 'style.css',
+      filename: "style.css",
     })
   ],
   module: {
@@ -28,13 +34,24 @@ module.exports = {
           {
             loader: MiniCssExtractPlugin.loader,
           },
-          'css-loader',
-          'postcss-loader',
-          'sass-loader',
+          "css-loader",
+          "postcss-loader",
+          "sass-loader",
         ],
       }
     ]
   },
   mode: "development",
-  devtool: "inline-source-map"
+  devtool: "inline-source-map",
+  devServer: {
+    port: port,
+    historyApiFallback: true,
+    contentBase: static_dir,
+    proxy: {
+      "/api": {
+        target: "http://localhost:" + port,
+        pathRewrite: {"/api": "/output"}
+      }
+    }
+  }
 };

@@ -48,10 +48,10 @@ def read_graph_io(
     full_superreads = superread_graph.get_full_superreads(consensus)
     SeqIO.write(full_superreads, output_full, 'fasta')
 
+    superread_graph.reduce()
     cvs_superreads = superread_graph.get_cvs_superreads()
     SeqIO.write(cvs_superreads, output_cvs, 'fasta')
 
-    superread_graph.reduce()
     superread_json = nx.node_link_data(superread_graph.superread_graph)
     with open(output_graph, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)

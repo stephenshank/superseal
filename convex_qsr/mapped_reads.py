@@ -5,7 +5,9 @@ import pandas as pd
 
 class AlignedSegment:
 
-    def __init__(self, pysam_aligned_segment, window_start=0, outer_gap_char='~'):
+    def __init__(
+            self, pysam_aligned_segment, window_start=0, outer_gap_char='~'
+            ):
         self.pysam_aligned_segment = pysam_aligned_segment
         self.current_cigar_tuple_index = 0
         self.position_in_current_cigar_tuple = 0
@@ -77,11 +79,13 @@ class AlignedSegment:
             return self.outer_gap_char
         if self.position_in_reference == current_position_in_reference:
             self.entered = True
-        
+
         if self.entered:
             action, stride = self.current_cigar_tuple
             if action == 0:
-                character = self.query_alignment_sequence[self.position_in_query]
+                character = self.query_alignment_sequence[
+                    self.position_in_query
+                ]
             if action == 2:
                 character = '-'
             self.advance()
@@ -126,8 +130,10 @@ class AlignedSegment:
 
 class BaseMappedReads:
 
-    def initiate_conversion(self, reference_length,
-            window_start, window_end, outer_gap_char='~'):
+    def initiate_conversion(
+            self, reference_length,
+            window_start, window_end, outer_gap_char='~'
+            ):
         self.position_in_fasta = 0
         self.position_in_reference = window_start
         self.outer_gap_char = outer_gap_char
@@ -189,11 +195,13 @@ class BaseMappedReads:
         self.position_in_reference += 1
         self.position_in_fasta += 1
 
-    def sam_window_to_fasta_with_insertions(self, reference_length,
-            window_start, window_end, outer_gap_char='~'):
-        number_of_segments = len(self.fetch())
-        self.initiate_conversion(reference_length,
-            window_start, window_end, outer_gap_char)
+    def sam_window_to_fasta_with_insertions(
+            self, reference_length,
+            window_start, window_end, outer_gap_char='~'
+            ):
+        self.initiate_conversion(
+            reference_length, window_start, window_end, outer_gap_char
+        )
         while self.should_continue():
             while self.handle_insertions():
                 pass
@@ -207,11 +215,12 @@ class BaseMappedReads:
         def segment_in_particular_window(segment):
             ends_before_start = segment.reference_end < window_start
             starts_after_end = segment.reference_start > window_end
-            return not ends_before_start and not starts_after_end 
+            return not ends_before_start and not starts_after_end
         return segment_in_particular_window
 
-    def pad_and_trim_segment(self, segment, window_start,
-            window_end, outer_gap_char='~'):
+    def pad_and_trim_segment(
+            self, segment, window_start, window_end, outer_gap_char='~'
+            ):
         left_pad_amount = max(0, segment.reference_start - window_start)
         right_pad_amount = max(0, window_end - segment.reference_end)
         left_trim_amount = max(0, window_start - segment.reference_start)
@@ -220,13 +229,16 @@ class BaseMappedReads:
         right_pad = np.array(right_pad_amount * [outer_gap_char], dtype='<U1')
         full_inner_fasta = segment.to_fasta(False)
         full_length = len(full_inner_fasta)
-        inner_fasta = full_inner_fasta[left_trim_amount:full_length-right_trim_amount]
+        inner_fasta = full_inner_fasta[
+            left_trim_amount: full_length - right_trim_amount
+        ]
         fasta = np.concatenate([left_pad, inner_fasta, right_pad])
         assert len(fasta) == window_end - window_start
         return fasta
 
-    def sam_window_to_fasta(self, window_start,
-            window_end, outer_gap_char='~'):
+    def sam_window_to_fasta(
+            self, window_start, window_end, outer_gap_char='~'
+            ):
         segments_np = np.array([
             self.pad_and_trim_segment(
                 segment, window_start,
@@ -259,4 +271,3 @@ class MappedReads(BaseMappedReads, pysam.AlignmentFile):
         ref = self.header['SQ'][0]['SN']
         for aligned_segment in super().fetch(ref, start, stop):
             yield AlignedSegment(aligned_segment)
-

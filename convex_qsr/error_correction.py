@@ -1,5 +1,6 @@
 import itertools as it
 from multiprocessing import Pool
+from multiprocessing import cpu_count
 
 import pandas as pd
 import numpy as np
@@ -167,7 +168,7 @@ class ErrorCorrection:
         return pairs
 
     def full_covariation_test(
-            self, threshold=20, stride=10000, ncpu=24, block_size=250
+            self, threshold=20, stride=10000, ncpu=None, block_size=250
             ):
         if self.covarying_sites is not None:
             return self.covarying_sites
@@ -178,7 +179,9 @@ class ErrorCorrection:
         ]
         n_pairs = len(pairs)
         n_blocks = len(arguments)
-        print('Processing %d blocks of %d pairs...' % (n_blocks, n_pairs))
+        message = 'Processing %d blocks of %d pairs with %d processes...'
+        ncpu = ncpu or cpu_count()
+        print(message % (n_blocks, n_pairs, ncpu))
         pool = Pool(processes=ncpu)
         result_dfs = pool.map(partial_covariation_test, arguments)
         pool.close()
@@ -223,9 +226,9 @@ class ErrorCorrection:
         nucleotide_counts.loc[self.covarying_sites, 'covarying'] = True
         site_counts = nucleotide_counts.loc[
             nucleotide_counts['covarying'], :
-            ].melt(
-                id_vars=['n_error', 'site'], value_vars=['A', 'C', 'G', 'T']
-                )
+        ].melt(
+            id_vars=['n_error', 'site'], value_vars=['A', 'C', 'G', 'T']
+        )
         covarying_values = site_counts['value']
         covarying_counts = site_counts['n_error']
         significant = (covarying_values <= covarying_counts) & \
@@ -270,10 +273,13 @@ class ErrorCorrection:
                     read, i, discrepancies
                 )
 
-    def corrected_reads(self, **kwargs):
+    def corrected_reads(self, end_correction=None, **kwargs):
         nucleotide_counts = self.get_nucleotide_counts()
         self.full_covariation_test(**kwargs)
         covarying_sites = self.multiple_testing_correction()
+        if end_correction:
+            tail_cutoff = self.reference_length - end_correction
+
         for read in self.pysam_alignment.fetch():
             sequence, _ = self.read_count_data(read)
             intraread_covarying_sites = covarying_sites[
@@ -286,6 +292,20 @@ class ErrorCorrection:
                 read.reference_start: read.reference_end
             ]
             sequence[mask] = local_consensus[mask]
+
+            if end_correction:
+                if read.reference_start < end_correction:
+                    query_index = end_correction - read.reference_start
+                    query_correction = nucleotide_counts.consensus[
+                        read.reference_start: end_correction
+                    ]
+                    sequence[0: query_index] = query_correction
+                if read.reference_end > tail_cutoff:
+                    correction_length = read.reference_end - tail_cutoff
+                    query_correction = nucleotide_counts.consensus[
+                        tail_cutoff: tail_cutoff + correction_length
+                    ]
+                    sequence[-correction_length:] = query_correction
 
             corrected_read = pysam.AlignedSegment()
             corrected_read.query_name = read.query_name
@@ -304,11 +324,11 @@ class ErrorCorrection:
             corrected_read.tags = read.tags
             yield corrected_read
 
-    def write_corrected_reads(self, output_bam_filename):
+    def write_corrected_reads(self, output_bam_filename, end_correction=None):
         output_bam = pysam.AlignmentFile(
             output_bam_filename, 'wb', header=self.pysam_alignment.header
         )
-        for read in self.corrected_reads():
+        for read in self.corrected_reads(end_correction=end_correction):
             output_bam.write(read)
         output_bam.close()
 

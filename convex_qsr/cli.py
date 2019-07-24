@@ -53,6 +53,14 @@ def error_correction():
         required=False,
         default=None
     )
+    parser.add_argument(
+        '-e', '--end-correction',
+        metavar="ENDCORRECTION",
+        type=int,
+        help="Correct bases at ends of reference to consensus",
+        required=False,
+        default=None
+    )
 
     args = parser.parse_args()
 
@@ -65,7 +73,9 @@ def error_correction():
         json = args.json
         fasta = args.fasta
 
-    error_correction_io(args.bam, corrected, json, fasta)
+    error_correction_io(
+        args.bam, corrected, json, fasta, end_correction=args.end_correction
+    )
 
 
 rg_description = '''

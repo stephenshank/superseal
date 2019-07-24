@@ -12,11 +12,14 @@ from .regression import perform_regression
 
 
 def error_correction_io(
-        input_bam, output_bam, output_json=None, output_fasta=None
+        input_bam, output_bam, output_json=None, output_fasta=None,
+        end_correction=None
         ):
     alignment = pysam.AlignmentFile(input_bam, 'rb')
     error_correction = ErrorCorrection(alignment)
-    error_correction.write_corrected_reads(output_bam)
+    error_correction.write_corrected_reads(
+        output_bam, end_correction=end_correction
+    )
     pysam.index(output_bam)
 
     if output_json:

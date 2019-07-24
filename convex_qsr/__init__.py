@@ -9,6 +9,7 @@ from .read_graph import SuperReadGraph
 
 from .io import error_correction_io
 from .io import read_graph_io
+from .io import regression_io
 
 
 __all__ = [
@@ -19,5 +20,6 @@ __all__ = [
     'SuperReadGraph',
     'error_correction_io',
     'read_graph_io',
+    'regression_io',
     'partial_covariation_test'
 ]

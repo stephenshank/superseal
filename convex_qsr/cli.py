@@ -322,12 +322,42 @@ def visualization():
 
     parser.add_argument(
         '-o', '--output',
-        metavar="output",
+        metavar="OUTPUT",
         type=str,
         help="Output directory where pipeline has been run",
-        required=False,
+        required=True,
         default=None
     )
+    parser.add_argument(
+        '-H', '--host',
+        metavar="HOST",
+        type=str,
+        help="Host to run webserver on",
+        required=False,
+        default='0.0.0.0'
+    )
+    parser.add_argument(
+        '-p', '--port',
+        metavar="PORT",
+        type=int,
+        help="Port to run webserver on",
+        required=False,
+        default=16180
+    )
+    browser_parser = parser.add_mutually_exclusive_group(required=False)
+    browser_parser.add_argument(
+        '--browser',
+        dest='browser',
+        action='store_true',
+        help="Open a web browser"
+    )
+    browser_parser.add_argument(
+        '--no-browser',
+        dest='browser',
+        action='store_false',
+        help="Do not open a web browser"
+    )
+    parser.set_defaults(browser=True)
 
     args = parser.parse_args()
-    show_viz(args.output)
+    show_viz(args.output, args.port, args.host, args.browser)

@@ -16,10 +16,10 @@ def error_correction_io(
         end_correction=None
         ):
     alignment = pysam.AlignmentFile(input_bam, 'rb')
-    error_correction = ErrorCorrection(alignment)
-    error_correction.write_corrected_reads(
-        output_bam, end_correction=end_correction
+    error_correction = ErrorCorrection(
+        alignment, end_correction=end_correction
     )
+    error_correction.write_corrected_reads(output_bam)
     pysam.index(output_bam)
 
     if output_json:

@@ -71,7 +71,8 @@ def partial_covariation_test(arguments):
 
 class ErrorCorrection:
     def __init__(
-            self, pysam_alignment, all_fe_tests=None, error_threshold=1e-3
+            self, pysam_alignment, all_fe_tests=None, error_threshold=1e-3,
+            end_correction=None
             ):
         self.pysam_alignment = pysam_alignment
         self.reference_length = pysam_alignment.header['SQ'][0]['LN']
@@ -87,6 +88,7 @@ class ErrorCorrection:
         self.pairs = None
         self.nucleotide_counts = None
         self.error_threshold = error_threshold
+        self.end_correction = end_correction
 
     @staticmethod
     def read_count_data(read):
@@ -201,6 +203,11 @@ class ErrorCorrection:
             ])
         )
         covarying_sites.sort()
+        after_head_correction = covarying_sites > self.end_correction
+        tail_cutoff = self.reference_length - self.end_correction
+        before_tail_correction = covarying_sites < tail_cutoff
+        desired_covarying_sites = after_head_correction & before_tail_correction
+        covarying_sites = covarying_sites[desired_covarying_sites]
         self.covarying_sites = covarying_sites
         self.nucleotide_counts.loc[:, 'covarying'] = False
         self.nucleotide_counts.loc[covarying_sites, 'covarying'] = True
@@ -273,9 +280,10 @@ class ErrorCorrection:
                     read, i, discrepancies
                 )
 
-    def corrected_reads(self, end_correction=None, **kwargs):
+    def corrected_reads(self, **kwargs):
+        end_correction = self.end_correction
         nucleotide_counts = self.get_nucleotide_counts()
-        self.full_covariation_test(**kwargs)
+        self.full_covariation_test()
         covarying_sites = self.multiple_testing_correction()
         if end_correction:
             tail_cutoff = self.reference_length - end_correction

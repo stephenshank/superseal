@@ -36,6 +36,8 @@ class SuperReadGraph:
         all_superreads = []
         superread_index = 0
         for covarying_boundaries, read_group in read_groups.items():
+            if covarying_boundaries[0] == covarying_boundaries[1]:
+                continue
             superreads = {}
             for read in read_group:
                 fasta = read.to_fasta()

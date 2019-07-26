@@ -37,7 +37,8 @@ def error_correction_io(
 def read_graph_io(
         input_bam, input_json, input_consensus,
         output_full, output_cvs, output_describing,
-        output_graph, output_candidates
+        output_graph, output_candidates,
+        minimum_weight=3
         ):
     with open(input_json) as json_file:
         covarying_sites = np.array(json.load(json_file), dtype=np.int)
@@ -45,7 +46,7 @@ def read_graph_io(
     corrected_reads = MappedReads(input_bam, 'rb')
 
     superread_graph = SuperReadGraph(corrected_reads, covarying_sites)
-    superread_graph.obtain_superreads()
+    superread_graph.obtain_superreads(minimum_weight)
     superread_graph.create_full()
 
     full_superreads = superread_graph.get_full_superreads(consensus)

@@ -22,6 +22,7 @@ class SuperReadGraph:
             self.superread_graph = None
 
     def obtain_superreads(self, minimum_weight=3):
+        print('Obtaining super reads with weight greater than %d...' % minimum_weight)
         read_information = self.mapped_reads.read_reference_start_and_end(
             self.covarying_sites
         )
@@ -99,7 +100,7 @@ class SuperReadGraph:
         return (False, 0)
 
     def create_full(self, **kwargs):
-        superreads = self.obtain_superreads(**kwargs)
+        superreads = self.superreads
         G = nx.DiGraph()
         G.add_node('source')
         G.add_node('target')

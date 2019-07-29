@@ -88,7 +88,7 @@ class ErrorCorrection:
         self.pairs = None
         self.nucleotide_counts = None
         self.error_threshold = error_threshold
-        self.end_correction = end_correction
+        self.end_correction = end_correction or 0
 
     @staticmethod
     def read_count_data(read):

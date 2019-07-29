@@ -160,6 +160,14 @@ def read_graph():
         required=False,
         default=None
     )
+    parser.add_argument(
+        '-m', '--minimum-weight',
+        metavar="MINIMUMWEIGHT",
+        type=int,
+        help="Minimum weight to discard from superreads",
+        required=False,
+        default=3
+    )
 
     args = parser.parse_args()
 
@@ -186,7 +194,9 @@ def read_graph():
         candidates = args.candidates
 
     read_graph_io(
-        bam, sites, consensus, full, restricted, describing, graph, candidates
+        bam, sites, consensus,
+        full, restricted, describing, graph, candidates,
+        args.minimum_weight
     )
 
 

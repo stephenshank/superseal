@@ -1,12 +1,12 @@
 package:
   name: convex-qsr 
-  version: '0.1.0'
+  version: '0.1.1'
 
 build:
   number: 1
 
 source:
-  url: https://github.com/stephenshank/convex-qsr/archive/v0.1.0.tar.gz
+  url: https://github.com/stephenshank/convex-qsr/archive/v0.1.1.tar.gz
   sha256: 87dafda8b819c7c65c63529cb919793cfd198da389bddba2fa68918d65e10804
 
 requirements:

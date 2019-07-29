@@ -8,19 +8,20 @@ setup(
     name='convex_qsr',
     version='0.1.0',
     url='https://github.com/stephenshank/convex-qsr',
+    download_url="https://github.com/stephenshank/convex-qsr/archive/v0.1.0.tar.gz",
     description='Reference-guided viral quasipsecies reconstruction',
     author='Stephen D. Shank',
     author_email='sshank314@gmail.com',
     maintainer='Stephen D. Shank',
     maintainer_email='sshank314@gmail.com',
     install_requires=[
-        'biopython==1.73',
-        'pandas==0.24.2',
-        'scipy==1.1.0',
-        'pysam==0.15.2',
-        'networkx==2.3',
-        'numpy==1.16.4',
-        'flask==1.1.1'
+        'biopython>=1.73',
+        'pandas>=0.24.2',
+        'scipy>=1.1.0',
+        'pysam>=0.15.2',
+        'networkx>=2.3',
+        'numpy>=1.16.4',
+        'flask>=1.1.1'
     ],
     tests_require=dev_dependencies,
     extras_require={

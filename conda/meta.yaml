@@ -1,0 +1,35 @@
+package:
+  name: convex-qsr 
+  version: '0.1.0'
+
+build:
+  number: 1
+
+source:
+  url: https://github.com/stephenshank/convex-qsr/archive/v0.1.0.tar.gz
+  sha256: 87dafda8b819c7c65c63529cb919793cfd198da389bddba2fa68918d65e10804
+
+requirements:
+  host:
+    - python
+    - setuptools
+  run:
+    - python
+    - numpy >=1.16.4
+    - scipy >=1.1.0
+    - pandas >=0.24.2
+    - networkx >=2.3
+    - flask >=1.1.1
+    - biopython >=1.73
+    - pysam >=0.15.2
+test:
+  commands:
+    - cqsr_ec -h
+  imports:
+    - convex_qsr
+
+about:
+  home: https://github.com/stephenshank/convex-qsr
+  license: MIT
+  license_file: LICENSE
+  summary: 'Reference guided quasispecies reconstruction using convex optimization'

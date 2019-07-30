@@ -61,17 +61,23 @@ def partial_covariation_test(arguments):
                 [X_21, X_22]
             ]
             _, p_value = fisher_exact(table)
-            results.append((col_i, col_j, i_char, j_char, p_value))
+            results.append((
+                col_i, col_j, i_char, j_char,
+                X_11, X_12, X_21, X_22, p_value
+            ))
     mr.close()
     print('   ...done block %d!' % i)
     return pd.DataFrame(
-        results, columns=('col_i', 'col_j', 'i_char', 'j_char', 'p_value')
+        results, columns=(
+            'col_i', 'col_j', 'i_char', 'j_char',
+            'x_11', 'x_12', 'x_21', 'x_22', 'p_value'
+        )
     )
 
 
 class ErrorCorrection:
     def __init__(
-            self, pysam_alignment, all_fe_tests=None, error_threshold=1e-3,
+            self, pysam_alignment, all_cv_tests=None, error_threshold=1e-3,
             end_correction=None
             ):
         self.pysam_alignment = pysam_alignment
@@ -80,10 +86,10 @@ class ErrorCorrection:
         for read in pysam_alignment.fetch():
             self.number_of_reads += 1
 
-        if all_fe_tests:
-            self.all_fe_tests = pd.read_csv(all_fe_tests)
+        if all_cv_tests:
+            self.all_cv_tests = pd.read_csv(all_cv_tests)
         else:
-            self.all_fe_test = None
+            self.all_cv_test = None
         self.covarying_sites = None
         self.pairs = None
         self.nucleotide_counts = None
@@ -187,19 +193,19 @@ class ErrorCorrection:
         pool = Pool(processes=ncpu)
         result_dfs = pool.map(partial_covariation_test, arguments)
         pool.close()
-        self.all_fe_tests = pd.concat(result_dfs).sort_values(by='p_value')
+        self.all_cv_tests = pd.concat(result_dfs).sort_values(by='p_value')
         print('...done!')
 
     def multiple_testing_correction(self, fdr=.001):
         print('Performing multiple testing correction...')
-        m = len(self.all_fe_tests)
-        bh_corrected = self.all_fe_tests['p_value'] <= fdr*np.arange(1, m+1)/m
-        self.all_fe_tests['bh'] = bh_corrected
-        cutoff = (1-self.all_fe_tests['bh']).to_numpy().nonzero()[0][0]
+        m = len(self.all_cv_tests)
+        bh_corrected = self.all_cv_tests['p_value'] <= fdr*np.arange(1, m+1)/m
+        self.all_cv_tests['bh'] = bh_corrected
+        cutoff = (1-self.all_cv_tests['bh']).to_numpy().nonzero()[0][0]
         covarying_sites = np.unique(
             np.concatenate([
-                self.all_fe_tests['col_i'].iloc[:cutoff],
-                self.all_fe_tests['col_j'].iloc[:cutoff]
+                self.all_cv_tests['col_i'].iloc[:cutoff],
+                self.all_cv_tests['col_j'].iloc[:cutoff]
             ])
         )
         covarying_sites.sort()

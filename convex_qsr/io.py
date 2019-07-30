@@ -11,6 +11,17 @@ from .read_graph import SuperReadGraph
 from .regression import perform_regression
 
 
+def write_json(path, data):
+    if path:
+        with open(path, 'w') as json_file:
+            json.dump(data, json_file, indent=2)
+
+
+def write_fasta(path, data):
+    if path:
+        SeqIO.write(data, path, 'fasta')
+
+
 def error_correction_io(
         input_bam, output_bam, output_json=None, output_fasta=None,
         end_correction=None
@@ -21,17 +32,11 @@ def error_correction_io(
     )
     error_correction.write_corrected_reads(output_bam)
     pysam.index(output_bam)
-
-    if output_json:
-        with open(output_json, 'w') as json_file:
-            json.dump(
-                [int(i) for i in error_correction.covarying_sites],
-                json_file
-            )
-
-    if output_fasta:
-        consensus_record = error_correction.consensus()
-        SeqIO.write(consensus_record, output_fasta, 'fasta')
+    write_json(
+        output_json, 
+        [int(i) for i in error_correction.covarying_sites]
+    )
+    write_fasta(output_fasta, error_correction.consensus())
 
 
 def read_graph_io(
@@ -50,21 +55,19 @@ def read_graph_io(
     superread_graph.create_full()
 
     full_superreads = superread_graph.get_full_superreads(consensus)
-    SeqIO.write(full_superreads, output_full, 'fasta')
+    write_fasta(output_full, full_superreads)
 
     superread_graph.reduce()
     cvs_superreads = superread_graph.get_cvs_superreads()
-    SeqIO.write(cvs_superreads, output_cvs, 'fasta')
+    write_fasta(output_cvs, cvs_superreads)
 
     superread_json = nx.node_link_data(superread_graph.superread_graph)
-    with open(output_graph, 'w') as json_file:
-        json.dump(superread_json, json_file, indent=2)
+    write_json(output_graph, superread_json)
 
     superread_records, describing_superreads = \
         superread_graph.get_candidate_quasispecies(consensus)
-    with open(output_describing, 'w') as json_file:
-        json.dump(describing_superreads, json_file, indent=2)
-    SeqIO.write(superread_records, output_candidates, 'fasta')
+    write_json(output_describing, describing_superreads)
+    write_fasta(output_candidates, superread_records)
 
 
 def regression_io(
@@ -87,4 +90,4 @@ def regression_io(
         record.description = ''
         all_quasispecies.append(record)
 
-    SeqIO.write(all_quasispecies, output_fasta, 'fasta')
+    write_fasta(output_fasta, all_quasispecies)

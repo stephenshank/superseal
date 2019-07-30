@@ -6,7 +6,7 @@ dev_dependencies = [
 
 setup(
     name='convex_qsr',
-    version='0.1.1',
+    version='0.1.2',
     url='https://github.com/stephenshank/convex-qsr',
     download_url="https://github.com/stephenshank/convex-qsr/archive/v0.1.1.tar.gz",
     description='Reference-guided viral quasipsecies reconstruction',
@@ -30,11 +30,9 @@ setup(
     packages=['convex_qsr'],
     entry_points={
         'console_scripts': [
-            'cqsr = convex_qsr.cli:full_pipeline',
             'cqsr_ec = convex_qsr.cli:error_correction',
             'cqsr_rg = convex_qsr.cli:read_graph',
             'cqsr_qr = convex_qsr.cli:quasispecies_reconstruction',
-            'cqsr_viz = convex_qsr.cli:visualization'
         ]
     },
     classifiers=[

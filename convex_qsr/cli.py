@@ -153,6 +153,14 @@ def read_graph():
         default=None
     )
     parser.add_argument(
+        '-g', '--graph',
+        metavar="GRAPH",
+        type=str,
+        help="Output JSON file of superread graph",
+        required=False,
+        default=None
+    )
+    parser.add_argument(
         '-C', '--candidates',
         metavar="CANDIDATES",
         type=str,
@@ -189,7 +197,7 @@ def read_graph():
     else:
         full = args.full
         restricted = args.restricted
-        describing = args.describing
+        describing = args.describing_superreads
         graph = args.graph
         candidates = args.candidates
 
@@ -266,7 +274,7 @@ def quasispecies_reconstruction():
         graph = os.path.join(args.output, "graph.json")
         candidates = os.path.join(args.output, "candidates.fasta")
     else:
-        describing = args.describing
+        describing = args.describing_superreads
         graph = args.graph
         candidates = args.candidates
 

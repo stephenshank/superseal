@@ -4,13 +4,18 @@ Reference-guided viral quasispecies reconstruction using convex optimization. **
 
 ## Install
 
+Available via [conda](https://anaconda.org/) from the [stephenshank](https://anaconda.org/stephenshank/) channel (coming soon to [bioconda](https://bioconda.github.io)):
+
 ```
-git clone https://github.com/stephenshank/convex-qsr
-cd convex-qsr
-python setup.py install
+conda config --add channels stephenshank
+conda install convex-qsr
 ```
 
-`pip` and `conda` installable packages coming soon.
+Also available via `pip` and the [PyPI](https://pypi.org/project/convex-qsr/):
+
+```
+pip install convex-qsr
+```
 
 ## Run
 
@@ -18,7 +23,6 @@ python setup.py install
 cqsr_ec -b sorted.bam -o output
 cqsr_rg -i output -o output
 cqsr_qr -i output -o output
-cqsr_viz -o output
 ```
 
 ## Test

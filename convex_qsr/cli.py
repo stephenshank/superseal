@@ -38,10 +38,10 @@ def error_correction():
         default=None
     )
     parser.add_argument(
-        '-j', '--json',
-        metavar="JSON",
+        '-s', '--sites',
+        metavar="SITES",
         type=str,
-        help="JSON file of mapped, sorted reads",
+        help="JSON file of covarying sites",
         required=False,
         default=None
     )
@@ -61,20 +61,29 @@ def error_correction():
         required=False,
         default=None
     )
+    parser.add_argument(
+        '-I', '--index',
+        metavar="INDEX",
+        type=str,
+        help="Index file for input BAM",
+        required=False,
+        default=None
+    )
+
 
     args = parser.parse_args()
-
     if args.output:
         corrected = os.path.join(args.output, "corrected.bam")
-        json = os.path.join(args.output, "covarying.json")
+        sites = os.path.join(args.output, "covarying.json")
         fasta = os.path.join(args.output, "consensus.fasta")
     else:
         corrected = args.corrected
-        json = args.json
+        sites = args.sites
         fasta = args.fasta
 
     error_correction_io(
-        args.bam, corrected, json, fasta, end_correction=args.end_correction
+        args.bam, corrected, sites, fasta,
+        args.end_correction, args.index
     )
 
 
@@ -109,6 +118,14 @@ def read_graph():
         metavar="BAM",
         type=str,
         help="BAM file of corrected, mapped reads",
+        required=False,
+        default=None
+    )
+    parser.add_argument(
+        '-I', '--index',
+        metavar="INDEX",
+        type=str,
+        help="Index file for input BAM",
         required=False,
         default=None
     )
@@ -204,7 +221,7 @@ def read_graph():
     read_graph_io(
         bam, sites, consensus,
         full, restricted, describing, graph, candidates,
-        args.minimum_weight
+        args.index, args.minimum_weight
     )
 
 

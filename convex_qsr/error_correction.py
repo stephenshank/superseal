@@ -19,7 +19,7 @@ def grouper(iterable, n, fillvalue=None):
 
 
 def partial_covariation_test(arguments):
-    pysam_path, pairs, i = arguments
+    pysam_path, index_path, pairs, i = arguments
     pairs, pairs_for_max, pairs_for_min = it.tee(
         it.filterfalse(lambda x: x is None, pairs),
         3
@@ -27,7 +27,7 @@ def partial_covariation_test(arguments):
     print('   ...processing block %d...' % i)
     pair_min = min([min(pair[0], pair[1]) for pair in pairs_for_min])
     pair_max = max([max(pair[0], pair[1]) for pair in pairs_for_max])
-    mr = MappedReads(pysam_path)
+    mr = MappedReads(pysam_path, index_filename=index_path)
     fasta_window = mr.sam_window_to_fasta(pair_min, pair_max+1)
     results = []
     for col_i, col_j in pairs:
@@ -181,8 +181,10 @@ class ErrorCorrection:
         if self.covarying_sites is not None:
             return self.covarying_sites
         pairs = self.get_pairs()
+        filename = self.pysam_alignment.filename
+        index_filename = self.pysam_alignment.index_filename
         arguments = [
-            (self.pysam_alignment.filename, group, i)
+            (filename, index_filename, group, i)
             for i, group in enumerate(grouper(pairs, block_size))
         ]
         n_pairs = len(pairs)

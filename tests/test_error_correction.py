@@ -95,7 +95,7 @@ class TestErrorCorrection(unittest.TestCase):
 
     def test_partial_covariation_test(self):
         pairs = self.error_correction.get_pairs()
-        partial_covariation_test((self.bam.filename, pairs[:1000], 1))
+        partial_covariation_test((self.bam.filename, None, pairs[:1000], 1))
 
     def test_full_covariation_test(self):
         self.error_correction.full_covariation_test()

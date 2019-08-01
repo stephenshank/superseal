@@ -171,6 +171,7 @@ class SuperReadGraph:
                 update(G.edges[source, target])
 
     def create(self, **kwargs):
+        self.obtain_superreads(**kwargs)
         self.create_full(**kwargs)
         self.reduce()
 

@@ -24,9 +24,9 @@ def write_fasta(path, data):
 
 def error_correction_io(
         input_bam, output_bam, output_json=None, output_fasta=None,
-        end_correction=None
+        end_correction=None, index=None
         ):
-    alignment = pysam.AlignmentFile(input_bam, 'rb')
+    alignment = pysam.AlignmentFile(input_bam, 'rb', index_filename=index)
     error_correction = ErrorCorrection(
         alignment, end_correction=end_correction
     )
@@ -42,13 +42,13 @@ def error_correction_io(
 def read_graph_io(
         input_bam, input_json, input_consensus,
         output_full, output_cvs, output_describing,
-        output_graph, output_candidates,
+        output_graph, output_candidates, index=None,
         minimum_weight=3
         ):
     with open(input_json) as json_file:
         covarying_sites = np.array(json.load(json_file), dtype=np.int)
     consensus = SeqIO.read(input_consensus, 'fasta')
-    corrected_reads = MappedReads(input_bam, 'rb')
+    corrected_reads = MappedReads(input_bam, 'rb', index_filename=index)
 
     superread_graph = SuperReadGraph(corrected_reads, covarying_sites)
     superread_graph.obtain_superreads(minimum_weight)

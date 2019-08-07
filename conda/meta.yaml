@@ -7,7 +7,7 @@ build:
 
 source:
   url: https://github.com/stephenshank/convex-qsr/archive/v0.2.0.tar.gz
-  sha256: 62c2dc2872b9a7c6f3465817ff59129e60ef444211c7c70b52f87fe1db9b2e9f
+  sha256: 0ee0f01f0d347cba3b6f9f7657a6fed3d42db2da39955d1c89110c6f54e63303
 
 requirements:
   host:

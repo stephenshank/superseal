@@ -89,7 +89,7 @@ class ErrorCorrection:
         if all_cv_tests:
             self.all_cv_tests = pd.read_csv(all_cv_tests)
         else:
-            self.all_cv_test = None
+            self.all_cv_tests = None
         self.covarying_sites = None
         self.pairs = None
         self.nucleotide_counts = None

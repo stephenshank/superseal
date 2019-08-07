@@ -21,10 +21,14 @@ def write_fasta(path, data):
     if path:
         SeqIO.write(data, path, 'fasta')
 
+def write_csv(path, data):
+    if path:
+        data.to_csv(path)
+
 
 def error_correction_io(
         input_bam, output_bam, output_json=None, output_fasta=None,
-        end_correction=None, index=None
+        output_tests=None, end_correction=None, index=None
         ):
     alignment = pysam.AlignmentFile(input_bam, 'rb', index_filename=index)
     error_correction = ErrorCorrection(
@@ -37,6 +41,7 @@ def error_correction_io(
         [int(i) for i in error_correction.covarying_sites]
     )
     write_fasta(output_fasta, error_correction.consensus())
+    write_csv(output_tests, error_correction.all_cv_tests)
 
 
 def read_graph_io(

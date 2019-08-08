@@ -157,11 +157,7 @@ class SuperReadGraph:
             print('Removing ', ' '.join([str(i) for i in did_not_connect]))
             G.remove_nodes_from(did_not_connect)
             for node in did_not_connect:
-                try:
-                    self.superreads[node]['discarded'] = True
-                except TypeError:
-                    import pdb
-                    pdb.set_trace()
+                self.superreads[node]['discarded'] = True
         self.superread_graph = nx.algorithms.dag.transitive_reduction(G)
         for node in G.nodes:
             self.superread_graph.nodes[node].update(G.nodes[node])

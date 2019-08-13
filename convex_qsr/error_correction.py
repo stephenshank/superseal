@@ -291,8 +291,11 @@ class ErrorCorrection:
     def corrected_reads(self, **kwargs):
         end_correction = self.end_correction
         nucleotide_counts = self.get_nucleotide_counts()
-        self.full_covariation_test()
-        covarying_sites = self.multiple_testing_correction()
+        if not self.covarying_sites:
+            self.full_covariation_test()
+            covarying_sites = self.multiple_testing_correction()
+        else:
+            covarying_sites = self.covarying_sites
         if end_correction:
             tail_cutoff = self.reference_length - end_correction
 

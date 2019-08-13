@@ -4,6 +4,7 @@ import argparse
 from .io import error_correction_io
 from .io import read_graph_io
 from .io import regression_io
+from .io import full_pipeline_io
 from .viz import show_viz
 
 
@@ -324,6 +325,14 @@ def full_pipeline():
         default=None
     )
     parser.add_argument(
+        '-c', '--corrected',
+        metavar="CORRECTED",
+        type=str,
+        help="BAM file of error-corrected reads",
+        required=False,
+        default=None
+    )
+    parser.add_argument(
         '-f', '--fasta',
         metavar="FASTA",
         type=str,
@@ -341,8 +350,18 @@ def full_pipeline():
     )
 
     args = parser.parse_args()
+    if args.output and args.fasta:
+        print(
+            'WARNING: Ignoring fasta argument since output directory',
+            'was specified'
+        )
+    if args.output and args.corrected:
+        print(
+            'WARNING: Ignoring corrected argument since output directory',
+            'was specified'
+        )
 
-    print('TODO: Implement full pipeline for:', args.bam, args.fasta)
+    full_pipeline_io(args.bam, args.corrected, args.output, args.fasta)
 
 
 visualization_description = '''

@@ -88,3 +88,14 @@ def perform_regression(
             print('Candidate %2d: frequency %.3f' % (i, frequency))
             quasispecies_info.append({'index': i, 'frequency': frequency})
     return quasispecies_info
+
+
+def obtain_quasispecies(quasispecies_info, candidates):
+    all_quasispecies = []
+    for i, quasispecies in enumerate(quasispecies_info):
+        record = candidates[quasispecies['index']]
+        record_info = (i + 1, quasispecies['frequency'])
+        record.id = 'quasispecies-%d_frequency-%.5f' % record_info
+        record.description = ''
+        all_quasispecies.append(record)
+    return all_quasispecies

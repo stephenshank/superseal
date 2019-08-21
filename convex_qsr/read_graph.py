@@ -124,9 +124,11 @@ class SuperReadGraph:
         self.superread_graph = G
 
     def node_pruner(self, node):
+        if node == 'source' or node == 'target':
+            return False
         G = self.superread_graph
-        starts_late = len(list(G.pred[node])) == 0 and node != 'source'
-        ends_early = len(list(G.succ[node])) == 0 and node != 'target'
+        starts_late = len(list(G.pred[node])) == 0
+        ends_early = len(list(G.succ[node])) == 0
         return starts_late or ends_early
 
     def reduce(self):

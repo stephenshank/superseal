@@ -106,3 +106,7 @@ class TestErrorCorrection(unittest.TestCase):
         corrected_bam_filename = 'corrected.bam'
         self.error_correction.write_corrected_reads(corrected_bam_filename)
         os.remove(corrected_bam_filename)
+
+    def test_kmers_in_reads(self):
+        self.error_correction.simple_thresholding()
+        self.error_correction.kmers_in_reads(4)

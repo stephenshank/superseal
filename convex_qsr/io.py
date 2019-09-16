@@ -23,23 +23,28 @@ def write_fasta(path, data):
     if path:
         SeqIO.write(data, path, 'fasta')
 
+
 def write_csv(path, data):
     if path:
         data.to_csv(path)
 
 
 def error_correction_io(
-        input_bam, output_bam, output_json=None, output_fasta=None,
+        input_bam, output_bam, filter_reads=True,
+        output_json=None, output_fasta=None,
         output_tests=None, end_correction=None, index=None
         ):
     alignment = pysam.AlignmentFile(input_bam, 'rb', index_filename=index)
     error_correction = ErrorCorrection(
         alignment, end_correction=end_correction
     )
-    error_correction.write_corrected_reads(output_bam)
+    if filter_reads:
+        error_correction.write_filtered_reads(output_bam)
+    else:
+        error_correction.write_corrected_reads(output_bam)
     pysam.index(output_bam)
     write_json(
-        output_json, 
+        output_json,
         [int(i) for i in error_correction.covarying_sites]
     )
     write_fasta(output_fasta, error_correction.consensus())
@@ -93,10 +98,14 @@ def regression_io(
     write_fasta(output_fasta, all_quasispecies)
 
 
-def full_pipeline_io(input_bam, output_bam=None, output_dir=None,
-        output_fasta=None, minimum_weight=3, end_correction=10):
+def full_pipeline_io(
+        input_bam, output_bam=None, output_dir=None,
+        output_fasta=None, minimum_weight=3, end_correction=10
+        ):
     alignment = pysam.AlignmentFile(input_bam, 'rb')
-    error_correction = ErrorCorrection(alignment, end_correction=end_correction)
+    error_correction = ErrorCorrection(
+        alignment, end_correction=end_correction
+    )
     output_fasta = output_fasta or os.path.join(
         output_dir, 'quasispecies.fasta'
     )
@@ -112,7 +121,7 @@ def full_pipeline_io(input_bam, output_bam=None, output_dir=None,
     if output_dir:
         output_json = os.path.join(output_dir, 'covarying_sites.json')
         write_json(
-            output_json, 
+            output_json,
             [int(i) for i in error_correction.covarying_sites]
         )
         output_consensus = os.path.join(output_dir, 'consensus.fasta')
@@ -121,7 +130,7 @@ def full_pipeline_io(input_bam, output_bam=None, output_dir=None,
         write_csv(output_tests, error_correction.all_cv_tests)
     if error_correction.covarying_sites.size == 0:
         print('No covariation detected!')
-        write_fasta(output_fasta, error_correction.consensus()) 
+        write_fasta(output_fasta, error_correction.consensus())
         return
 
     corrected_reads = MappedReads(output_bam, 'rb')
@@ -153,5 +162,7 @@ def full_pipeline_io(input_bam, output_bam=None, output_dir=None,
     quasispecies_info = perform_regression(
         superread_json['nodes'], describing_superreads
     )
-    all_quasispecies = obtain_quasispecies(quasispecies_info, superread_records)
+    all_quasispecies = obtain_quasispecies(
+        quasispecies_info, superread_records
+    )
     write_fasta(output_fasta, all_quasispecies)

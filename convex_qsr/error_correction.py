@@ -129,6 +129,16 @@ class ErrorCorrection:
         sequence = np.concatenate([list(segment) for segment in segments])
         return sequence, positions
 
+    @staticmethod
+    def supplementary_info(row):
+        result = row.loc[['A', 'C', 'G', 'T']] \
+            .sort_values(ascending=False)
+        result.index = ['c1', 'c2', 'c3', 'c4']
+        return result.append(pd.Series(
+            result.values/row['coverage'],
+            index=['f1', 'f2', 'f3', 'f4']
+        ))
+
     def get_nucleotide_counts(self):
         if self.nucleotide_counts is not None:
             return self.nucleotide_counts
@@ -151,6 +161,7 @@ class ErrorCorrection:
         for character in characters[:-1]:
             consensus_agreement = df['nucleotide_max'] == df[character]
             df.loc[consensus_agreement, 'consensus'] = character
+        df = pd.concat([df, df.apply(self.supplementary_info, axis=1)], axis=1)
         self.nucleotide_counts = df
         return df
 
@@ -214,8 +225,8 @@ class ErrorCorrection:
         after_head_correction = covarying_sites > self.end_correction
         tail_cutoff = self.reference_length - self.end_correction
         before_tail_correction = covarying_sites < tail_cutoff
-        desired_covarying_sites = after_head_correction & before_tail_correction
-        covarying_sites = covarying_sites[desired_covarying_sites]
+        desired_sites = after_head_correction & before_tail_correction
+        covarying_sites = covarying_sites[desired_sites]
         self.covarying_sites = covarying_sites
         self.nucleotide_counts.loc[:, 'covarying'] = False
         self.nucleotide_counts.loc[covarying_sites, 'covarying'] = True
@@ -348,6 +359,71 @@ class ErrorCorrection:
             output_bam_filename, 'wb', header=self.pysam_alignment.header
         )
         for read in self.corrected_reads(end_correction=end_correction):
+            output_bam.write(read)
+        output_bam.close()
+
+    def simple_thresholding(self, threshold=.01):
+        self.get_nucleotide_counts()
+        above_threshold = (
+            self.nucleotide_counts 
+            .loc[:, ['f1', 'f2', 'f3', 'f4']] > threshold
+        ).sum(axis=1)
+        all_integers = np.arange(0, len(above_threshold))
+        covarying_sites = all_integers[above_threshold > 1]
+        number_of_sites = len(self.nucleotide_counts)
+        after_head_correction = covarying_sites > self.end_correction
+        final_site = number_of_sites - self.end_correction
+        before_tail_correction = covarying_sites < final_site
+        desired = after_head_correction & before_tail_correction
+        self.covarying_sites = covarying_sites[desired]
+
+    def kmers_in_reads(self, k=4):
+        kmer_dict = {}
+        for covarying_site in self.covarying_sites:
+            kmer_dict[covarying_site] = {}
+        print('Determining covarying %d-mers in reads...' % k)
+        for read_index, read in enumerate(self.pysam_alignment.fetch()):
+            after_start = self.covarying_sites >= read.reference_start
+            before_end = self.covarying_sites < read.reference_end
+            desired = after_start & before_end
+            inter_read_cvs = self.covarying_sites[desired]
+            characters_at_cvs = [
+                read.query[pair[0]]
+                for pair in read.get_aligned_pairs(matches_only=True)
+                if pair[1] in inter_read_cvs
+            ]
+            for i in range(len(inter_read_cvs)-k):
+                kmer = ''.join(characters_at_cvs[i:i+k])
+                if kmer in kmer_dict[inter_read_cvs[i]]:
+                    kmer_dict[inter_read_cvs[i]][kmer].append(read.query_name)
+                else:
+                    kmer_dict[inter_read_cvs[i]][kmer] = [read.query_name]
+            if read_index % 10000 == 0:
+                print(' ...finished read %d' % read_index, end='', flush=True)
+        print('...done!')
+        return kmer_dict
+
+    def filtered_reads(self, k=4, cutoff=20):
+        skip_dict = {}
+        self.simple_thresholding()
+        kmer_dict = self.kmers_in_reads(k)
+        for covarying_site, single_kmer_dict in kmer_dict.items():
+            bad_reads = it.chain.from_iterable([
+                value
+                for key, value in single_kmer_dict.items()
+                if len(value) < cutoff
+            ])
+            for bad_read in bad_reads:
+                skip_dict[bad_read] = True
+        for read in self.pysam_alignment.fetch():
+            if read.query_name not in skip_dict:
+                yield read
+
+    def write_filtered_reads(self, output_bam_path):
+        output_bam = pysam.AlignmentFile(
+            output_bam_path, 'wb', header=self.pysam_alignment.header
+        )
+        for read in self.filtered_reads():
             output_bam.write(read)
         output_bam.close()
 

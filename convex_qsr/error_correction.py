@@ -365,7 +365,7 @@ class ErrorCorrection:
     def simple_thresholding(self, threshold=.01):
         self.get_nucleotide_counts()
         above_threshold = (
-            self.nucleotide_counts 
+            self.nucleotide_counts
             .loc[:, ['f1', 'f2', 'f3', 'f4']] > threshold
         ).sum(axis=1)
         all_integers = np.arange(0, len(above_threshold))

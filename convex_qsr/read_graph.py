@@ -42,7 +42,7 @@ class SuperReadGraph:
                 continue
             superreads = {}
             for read in read_group:
-                fasta = read.to_fasta()
+                fasta = read.to_fasta(insertions=False)
                 covarying_sites_in_read = self.covarying_sites[
                     covarying_boundaries[0]: covarying_boundaries[1]
                 ]

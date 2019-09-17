@@ -22,7 +22,8 @@ class SuperReadGraph:
             self.superread_graph = None
 
     def obtain_superreads(self, minimum_weight=3):
-        print('Obtaining super reads with weight greater than %d...' % minimum_weight)
+        message = 'Obtaining super reads with weight greater than %d...'
+        print(message % minimum_weight)
         read_information = self.mapped_reads.read_reference_start_and_end(
             self.covarying_sites
         )

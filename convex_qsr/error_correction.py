@@ -135,7 +135,7 @@ class ErrorCorrection:
             .sort_values(ascending=False)
         result.index = ['c1', 'c2', 'c3', 'c4']
         return result.append(pd.Series(
-            result.values/row['coverage'],
+            result.values/row['coverage'] if row['coverage'] else 0,
             index=['f1', 'f2', 'f3', 'f4']
         ))
 
@@ -403,7 +403,7 @@ class ErrorCorrection:
         print('...done!')
         return kmer_dict
 
-    def filtered_reads(self, k=4, cutoff=20):
+    def filtered_reads(self, k=4, cutoff=20, minimum_length=100):
         skip_dict = {}
         self.simple_thresholding()
         kmer_dict = self.kmers_in_reads(k)
@@ -416,7 +416,10 @@ class ErrorCorrection:
             for bad_read in bad_reads:
                 skip_dict[bad_read] = True
         for read in self.pysam_alignment.fetch():
-            if read.query_name not in skip_dict:
+            should_not_skip = read.query_name not in skip_dict
+            long_enough = read.query_length > minimum_length
+            valid = should_not_skip and long_enough
+            if valid:
                 yield read
 
     def write_filtered_reads(self, output_bam_path):

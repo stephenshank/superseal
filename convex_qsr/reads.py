@@ -96,6 +96,95 @@ def get_covarying_sites(alignment, threshold=.01, end_correction=10):
     return covarying_sites[desired]
 
 
+def read_reference_start_and_end(alignment, site_boundaries):
+    read_information = pd.DataFrame(
+        [
+            (read.reference_start, read.reference_end)
+            for read in alignment.fetch()
+        ],
+        columns=['reference_start', 'reference_end']
+    )
+    read_information['covarying_start'] = np.searchsorted(
+        site_boundaries, read_information['reference_start']
+    )
+    read_information['covarying_end'] = np.searchsorted(
+        site_boundaries, read_information['reference_end']
+    )
+    return read_information
+
+
+def admission(minimum_weight):
+    def comparator(pair):
+        return pair[1][0] >= minimum_weight
+    return comparator
+
+
+def extract_label(query_name):
+    return '-'.join(query_name.split('.')[:4]) if not '+' in query_name else 'AR'
+
+
+def obtain_superreads(alignment, covarying_sites, minimum_weight=3):
+    read_information = read_reference_start_and_end(
+        alignment, covarying_sites
+    )
+    read_groups = {}
+    all_reads = list(alignment.fetch())
+    for i, read in enumerate(all_reads):
+        row = read_information.iloc[i, :]
+        key = (row['covarying_start'], row['covarying_end'])
+        if key in read_groups:
+            read_groups[key].append(i)
+        else:
+            read_groups[key] = [i]
+    all_superreads = []
+    superread_index = 0
+    for covarying_boundaries, read_group in read_groups.items():
+        if covarying_boundaries[0] == covarying_boundaries[1]:
+            continue
+        superreads = {}
+        for read_index in read_group:
+            read = all_reads[read_index]
+            label = extract_label(read.query_name)
+            covarying_sites_in_read = covarying_sites[
+                covarying_boundaries[0]: covarying_boundaries[1]
+            ]
+            value_at_covarying_sites = ''.join(
+                [
+                    read.query[triplet[0]].upper()
+                    for triplet in read.get_aligned_pairs(True)
+                    if triplet[1] in covarying_sites_in_read
+                ]
+            )
+            has_ar = 1 if '+' in read.query_name else 0
+            if value_at_covarying_sites in superreads:
+                superreads[value_at_covarying_sites][0] += 1
+                superreads[value_at_covarying_sites][1] += has_ar
+                if not label in superreads[value_at_covarying_sites][2]:
+                     superreads[value_at_covarying_sites][2][label] = 0
+                superreads[value_at_covarying_sites][2][label] += 1
+            else:
+                superreads[value_at_covarying_sites] = [1, has_ar, {label: 1}]
+        admissible_superreads = list(filter(admission(minimum_weight), superreads.items()))
+        total_weight = sum([
+            superread[1][0] for superread in admissible_superreads
+        ])
+        for vacs, weight in admissible_superreads:
+            all_superreads.append({
+                'index': superread_index,
+                'vacs': vacs,
+                'weight': weight[0],
+                'frequency': weight[0]/total_weight,
+                'ar': weight[1],
+                'ar_frequency': weight[1]/weight[0],
+                'cv_start': int(covarying_boundaries[0]),
+                'cv_end': int(covarying_boundaries[1]),
+                'composition': weight[2],
+                'discarded': False
+            })
+            superread_index += 1
+    return all_superreads
+
+
 def covarying_sites_io(bam_path, json_path):
     alignment = pysam.AlignmentFile(bam_path, 'rb')
     covarying_sites = get_covarying_sites(alignment)
@@ -104,3 +193,25 @@ def covarying_sites_io(bam_path, json_path):
         json.dump(covarying_sites_json, json_file)
 
 
+def superread_json_io(bam_path, covarying_path, superread_path):
+    with open(covarying_path) as json_file:
+        covarying_sites = np.array(json.load(json_file), dtype=np.int)
+    alignment = pysam.AlignmentFile(bam_path, 'rb')
+
+    superreads = obtain_superreads(alignment, covarying_sites)
+    with open(superread_path, 'w') as json_file:
+        json.dump(superreads, json_file, indent=2)
+
+
+def superread_fasta_io(input_cvs, input_srdata, output_fasta):
+    with open(input_cvs) as json_file:
+        cvs = json.load(json_file)
+    with open(input_srdata) as json_file:
+        srdata = json.load(json_file)
+    outfile = open(output_fasta, 'w')
+    n_cvs = len(cvs)
+    for sr in srdata:
+        outfile.write('>superread-%d\n' % sr['index'])
+        seq = sr['cv_start']*'-' + sr['vacs'] + (n_cvs - sr['cv_end'])*'-'
+        outfile.write(seq + '\n')
+    outfile.close()

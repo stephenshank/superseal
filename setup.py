@@ -28,14 +28,6 @@ setup(
         'dev': dev_dependencies
     },
     packages=['convex_qsr'],
-    entry_points={
-        'console_scripts': [
-            'cqsr = convex_qsr.cli:full_pipeline',
-            'cqsr_ec = convex_qsr.cli:error_correction',
-            'cqsr_rg = convex_qsr.cli:read_graph',
-            'cqsr_qr = convex_qsr.cli:quasispecies_reconstruction',
-        ]
-    },
     classifiers=[
         'Intended Audience :: Science/Research',
         'Topic :: Scientific/Engineering',

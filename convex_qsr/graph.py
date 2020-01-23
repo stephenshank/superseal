@@ -32,11 +32,11 @@ def check_compatability(superread_i, superread_j, minimum_overlap=2):
     return (False, 0)
 
 
-def create_full(superreads, covarying_sites):
+def create_full(superreads):
     G = nx.DiGraph()
     G.add_node('source')
     G.add_node('target')
-    n_cv = len(covarying_sites)
+    n_cv = max([sr['cv_end'] for sr in superreads])
     for superread in superreads:
         G.add_node(superread['index'], **superread)
         if superread['cv_start'] == 0:
@@ -70,12 +70,10 @@ def dynamic_programming_path_count(G, source='source', target='target'):
   return G.nodes[source]['npath']
 
 
-def full_graph_io(input_srdata, input_cvs, output_json):
-    with open(input_cvs) as json_file:
-        covarying_sites = json.load(json_file)
+def full_graph_io(input_srdata, output_json):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
-    G = create_full(superreads, covarying_sites)
+    G = create_full(superreads)
     G = nx.algorithms.dag.transitive_reduction(G)
     superread_json = nx.node_link_data(G)
     superread_json['number_of_paths'] = dynamic_programming_path_count(G)

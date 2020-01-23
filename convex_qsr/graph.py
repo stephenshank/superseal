@@ -93,3 +93,27 @@ def full_graph_io(input_srdata, output_json):
     superread_json['number_of_paths'] = dynamic_programming_path_count(G)
     with open(output_json, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)
+
+
+def create_reduced(superreads, edges_per_node=3):
+    G = initialize_superread_graph(superreads)
+    all_edges = get_full_edge_list(superreads)
+    grouped_edges = it.groupby(all_edges, lambda edge: edge['i'])
+    for i, edges_i in grouped_edges:
+        sorted_edges = sorted(
+            edges_i, reverse=True, key=lambda edge: edge['overlap']
+        )
+        for edge in it.islice(sorted_edges, 0, edges_per_node):
+            G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
+    G = nx.algorithms.dag.transitive_reduction(G)
+    return G
+
+
+def reduced_graph_io(input_srdata, output_json, edges_per_node=2):
+    with open(input_srdata) as json_file:
+        superreads = json.load(json_file)
+    G = create_reduced(superreads, edges_per_node)
+    superread_json = nx.node_link_data(G)
+    superread_json['number_of_paths'] = dynamic_programming_path_count(G)
+    with open(output_json, 'w') as json_file:
+        json.dump(superread_json, json_file, indent=2)

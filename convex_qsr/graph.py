@@ -32,7 +32,23 @@ def check_compatability(superread_i, superread_j, minimum_overlap=2):
     return (False, 0)
 
 
-def create_full(superreads):
+def get_full_edge_list(superreads):
+    edge_list = []
+    for superread_i in superreads:
+        for superread_j in superreads:
+            should_include_edge, overlap = check_compatability(
+                superread_i, superread_j
+            )
+            if should_include_edge:
+                edge_list.append({
+                    'i': superread_i['index'],
+                    'j': superread_j['index'],
+                    'overlap': overlap
+                })
+    return edge_list
+
+
+def initialize_superread_graph(superreads):
     G = nx.DiGraph()
     G.add_node('source')
     G.add_node('target')
@@ -43,16 +59,15 @@ def create_full(superreads):
             G.add_edge('source', superread['index'])
         if superread['cv_end'] == n_cv:
             G.add_edge(superread['index'], 'target')
-    for superread_i in superreads:
-        for superread_j in superreads:
-            should_include_edge, overlap = check_compatability(
-                superread_i, superread_j
-            )
-            if should_include_edge:
-                G.add_edge(
-                    superread_i['index'], superread_j['index'],
-                    overlap=overlap
-                )
+    return G
+
+
+def create_full(superreads):
+    G = initialize_superread_graph(superreads)
+    all_edges = get_full_edge_list(superreads)
+    for edge in all_edges:
+        G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
+    G = nx.algorithms.dag.transitive_reduction(G)
     return G
 
 
@@ -74,7 +89,6 @@ def full_graph_io(input_srdata, output_json):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     G = create_full(superreads)
-    G = nx.algorithms.dag.transitive_reduction(G)
     superread_json = nx.node_link_data(G)
     superread_json['number_of_paths'] = dynamic_programming_path_count(G)
     with open(output_json, 'w') as json_file:

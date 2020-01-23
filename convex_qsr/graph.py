@@ -85,12 +85,19 @@ def dynamic_programming_path_count(G, source='source', target='target'):
   return G.nodes[source]['npath']
 
 
+def annotate_and_serialize_graph(G):
+    superread_json = nx.node_link_data(G)
+    superread_json['number_of_paths'] = dynamic_programming_path_count(G)
+    superread_json['number_of_nodes'] = len(G)
+    superread_json['number_of_edges'] = G.number_of_edges()
+    return superread_json
+
+
 def full_graph_io(input_srdata, output_json):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     G = create_full(superreads)
-    superread_json = nx.node_link_data(G)
-    superread_json['number_of_paths'] = dynamic_programming_path_count(G)
+    superread_json = annotate_and_serialize_graph(G)
     with open(output_json, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)
 
@@ -113,7 +120,6 @@ def reduced_graph_io(input_srdata, output_json, edges_per_node=2):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     G = create_reduced(superreads, edges_per_node)
-    superread_json = nx.node_link_data(G)
-    superread_json['number_of_paths'] = dynamic_programming_path_count(G)
+    superread_json = annotate_and_serialize_graph(G)
     with open(output_json, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)

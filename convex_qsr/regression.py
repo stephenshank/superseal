@@ -1,6 +1,10 @@
+import json
 import itertools as it
 
 import numpy as np
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
 from scipy.linalg import lu_factor
 from scipy.linalg import lu_solve
 
@@ -28,23 +32,15 @@ class QuadraticProx:
         return lu_solve(self.lu_factors, z)
 
 
-def is_valid_superread(superread):
-    is_source = superread['id'] == 'source'
-    is_target = superread['id'] == 'target'
-    if is_source or is_target:
-        return False
-    return not superread['discarded']
-
-
-def build_L_and_y(superread_info, candidate_info):
+def build_L_and_y(superreads, candidate_info):
     surviving_superread_indices = list(set(
         it.chain.from_iterable(candidate_info)
     ))
     surviving_superread_indices.sort()
     reindex_map = {ssi: i for i, ssi in enumerate(surviving_superread_indices)}
-    valid_superreads = [
-        superread for superread in superread_info
-        if is_valid_superread(superread)
+    surviving_superreads = [
+        superreads[surviving_index]
+        for surviving_index in surviving_superread_indices
     ]
     n = len(surviving_superread_indices)
     m = len(candidate_info)
@@ -55,7 +51,7 @@ def build_L_and_y(superread_info, candidate_info):
         L[reindexed_row, i] = 1
 
     y = np.array([
-        row_info['frequency'] for row_info in valid_superreads
+        row_info['frequency'] for row_info in surviving_superreads
     ])
 
     return L, y
@@ -86,16 +82,50 @@ def perform_regression(
     for i, frequency in enumerate(x):
         if frequency > 0:
             print('Candidate %2d: frequency %.3f' % (i, frequency))
-            quasispecies_info.append({'index': i, 'frequency': frequency})
+            quasispecies_info.append({
+                'index': i,
+                'frequency': frequency,
+                'describing_superreads': candidate_info[i]
+            })
     return quasispecies_info
 
 
-def obtain_quasispecies(quasispecies_info, candidates):
+def obtain_quasispecies(all_quasispecies_info, superreads, consensus, covarying_sites):
     all_quasispecies = []
-    for i, quasispecies in enumerate(quasispecies_info):
-        record = candidates[quasispecies['index']]
-        record_info = (i + 1, quasispecies['frequency'])
-        record.id = 'quasispecies-%d_frequency-%.5f' % record_info
-        record.description = ''
+    consensus_np = np.array(list(str(consensus.seq)), dtype='<U1')
+    for i, quasispecies_info in enumerate(all_quasispecies_info):
+        current_sequence = np.copy(consensus_np)
+        for superread_index in quasispecies_info['describing_superreads']:
+            cv_start = superreads[superread_index]['cv_start']
+            vacs = superreads[superread_index]['vacs']
+            n_sites = len(vacs)
+            cv_end = cv_start + n_sites
+            reference_indices = covarying_sites[cv_start: cv_end]
+            current_sequence[reference_indices] = list(vacs)
+        record_info = (i + 1, quasispecies_info['frequency'])
+        record = SeqRecord(
+            Seq(''.join(current_sequence)),
+            id='quasispecies-%d_frequency-%.5f' % record_info,
+            description=''
+        )
         all_quasispecies.append(record)
     return all_quasispecies
+
+
+def regression_io(
+        input_superreads, input_describing_json,
+        input_consensus, input_covarying_sites, output_fasta
+        ):
+    with open(input_superreads) as superread_file:
+        superreads = json.load(superread_file)
+    with open(input_describing_json) as candidates_file:
+        describing = json.load(candidates_file)
+    with open(input_covarying_sites) as json_file:
+        covarying_sites = np.array(json.load(json_file), dtype=np.int)
+
+    quasispecies_info = perform_regression(superreads, describing)
+    consensus = SeqIO.read(input_consensus, 'fasta')
+    all_quasispecies = obtain_quasispecies(
+        quasispecies_info, superreads, consensus, covarying_sites
+    )
+    SeqIO.write(all_quasispecies, output_fasta, 'fasta')

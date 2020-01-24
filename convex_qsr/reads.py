@@ -1,5 +1,8 @@
 import json
 
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
 import numpy as np
 import pandas as pd
 import pysam
@@ -93,7 +96,13 @@ def get_covarying_sites(alignment, threshold=.01, end_correction=10):
     final_site = number_of_sites - end_correction
     before_tail_correction = covarying_sites < final_site
     desired = after_head_correction & before_tail_correction
-    return covarying_sites[desired]
+    consensus_sequence = ''.join(nucleotide_counts['consensus'])
+    consensus_record = SeqRecord(
+        Seq(consensus_sequence),
+        id='consensus',
+        description=''
+    )
+    return covarying_sites[desired], consensus_record
 
 
 def read_reference_start_and_end(alignment, site_boundaries):
@@ -185,12 +194,13 @@ def obtain_superreads(alignment, covarying_sites, minimum_weight=3):
     return all_superreads
 
 
-def covarying_sites_io(bam_path, json_path):
+def covarying_sites_io(bam_path, json_path, fasta_path):
     alignment = pysam.AlignmentFile(bam_path, 'rb')
-    covarying_sites = get_covarying_sites(alignment)
+    covarying_sites, consensus = get_covarying_sites(alignment)
     covarying_sites_json = [int(site) for site in covarying_sites]
     with open(json_path, 'w') as json_file:
         json.dump(covarying_sites_json, json_file)
+    SeqIO.write(consensus, fasta_path, 'fasta')
 
 
 def superread_json_io(bam_path, covarying_path, superread_path):

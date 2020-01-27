@@ -3,9 +3,12 @@ import itertools as it
 
 import numpy as np
 import networkx as nx
+import pandas as pd
 
 
 def check_compatability(superread_i, superread_j, minimum_overlap=2):
+    if not 'index' in superread_i or not 'index' in superread_j:
+        return (False, 0)
     if superread_i['index'] == superread_j['index']:
         return (False, 0)
     i_cv_start = superread_i['cv_start']
@@ -33,10 +36,12 @@ def check_compatability(superread_i, superread_j, minimum_overlap=2):
     return (False, 0)
 
 
-def get_full_edge_list(superreads):
+def get_full_edge_list(G):
     edge_list = []
-    for superread_i in superreads:
-        for superread_j in superreads:
+    for superread_index_i in G.nodes:
+        superread_i = G.nodes[superread_index_i]
+        for superread_index_j in G.nodes:
+            superread_j = G.nodes[superread_index_j]
             should_include_edge, overlap = check_compatability(
                 superread_i, superread_j
             )
@@ -49,17 +54,29 @@ def get_full_edge_list(superreads):
     return edge_list
 
 
-def initialize_superread_graph(superreads):
+def initialize_superread_graph(superreads, weight_percentile_cutoff=.1,
+        minimum_weight=3
+        ):
     G = nx.DiGraph()
-    G.add_node('source')
-    G.add_node('target')
     n_cv = max([sr['cv_end'] for sr in superreads])
+    G.add_node('source', **{'cv_start': 0, 'cv_end': 0})
+    G.add_node('target', **{'cv_start': n_cv, 'cv_end': n_cv})
+    superread_weights = pd.Series([
+        sr['weight']
+        for sr in superreads
+        if sr['weight'] >= minimum_weight
+    ])
+    weight_cutoff = superread_weights.quantile(weight_percentile_cutoff)
+    message = 'Building superread graph with %d out of %d superreads...'
+    admissible_count = (superread_weights >= weight_cutoff).sum()
+    print(message % (admissible_count, len(superreads)))
     for superread in superreads:
-        G.add_node(superread['index'], **superread)
-        if superread['cv_start'] == 0:
-            G.add_edge('source', superread['index'])
-        if superread['cv_end'] == n_cv:
-            G.add_edge(superread['index'], 'target')
+        if superread['weight'] >= weight_cutoff:
+            G.add_node(superread['index'], **superread)
+            if superread['cv_start'] == 0:
+                G.add_edge('source', superread['index'])
+            if superread['cv_end'] == n_cv:
+                G.add_edge(superread['index'], 'target')
     return G
 
 
@@ -73,9 +90,13 @@ def transitive_reduction(G):
     return Gtr
 
 
-def create_full(superreads):
-    G = initialize_superread_graph(superreads)
-    all_edges = get_full_edge_list(superreads)
+def create_full(superreads, weight_percentile_cutoff=.1,
+        minimum_weight=3
+    ):
+    G = initialize_superread_graph(
+        superreads, weight_percentile_cutoff, minimum_weight
+    )
+    all_edges = get_full_edge_list(G)
     for edge in all_edges:
         G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
     return transitive_reduction(G)
@@ -103,18 +124,30 @@ def annotate_and_serialize_graph(G):
     return superread_json
 
 
-def full_graph_io(input_srdata, output_json):
+def graph_io(input_srdata, output_json, graph_type='full',
+        edges_per_node=3, weight_percentile_cutoff=.1,
+        minimum_weight=3):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
-    G = create_full(superreads)
+    if graph_type == 'full':
+        G = create_full(superreads)
+    else:
+        G = create_reduced(
+            superreads, edges_per_node, weight_percentile_cutoff,
+            minimum_weight
+        )
     superread_json = annotate_and_serialize_graph(G)
     with open(output_json, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)
 
 
-def create_reduced(superreads, edges_per_node=3):
-    G = initialize_superread_graph(superreads)
-    all_edges = get_full_edge_list(superreads)
+def create_reduced(superreads, edges_per_node=3, weight_percentile_cutoff=.1,
+        minimum_weight=3
+    ):
+    G = initialize_superread_graph(
+        superreads, weight_percentile_cutoff, minimum_weight
+    )
+    all_edges = get_full_edge_list(G)
     grouped_edges = it.groupby(all_edges, lambda edge: edge['i'])
     for i, edges_i in grouped_edges:
         sorted_edges = sorted(
@@ -122,28 +155,18 @@ def create_reduced(superreads, edges_per_node=3):
         )
         for edge in it.islice(sorted_edges, 0, edges_per_node):
             G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
-    return transitive_reduction(G)
+    G_tr = transitive_reduction(G)
+    message = 'Built superread graph with %d nodes and %d edges...'
+    print(message % (len(G.nodes), len(G.edges)))
+    return G_tr
 
 
-def reduced_graph_io(input_srdata, output_json, edges_per_node=2):
-    with open(input_srdata) as json_file:
-        superreads = json.load(json_file)
-    G = create_reduced(superreads, edges_per_node)
-    superread_json = annotate_and_serialize_graph(G)
-    with open(output_json, 'w') as json_file:
-        json.dump(superread_json, json_file, indent=1)
-
-
-def get_candidates(G, superreads):
-    number_of_covarying_sites = max([sr['cv_end'] for sr in superreads])
+def get_candidates(G):
+    number_of_covarying_sites = G.nodes['target']['cv_end']
     G.nodes['source']['candidate_quasispecies'] = np.array(
         [[]], dtype='<U1'
     )
     G.nodes['source']['describing_superreads'] = [[]]
-    G.nodes['source']['cv_start'] = 0
-    G.nodes['source']['cv_end'] = 0
-    G.nodes['target']['cv_start'] = number_of_covarying_sites
-    G.nodes['target']['cv_end'] = number_of_covarying_sites
     G.nodes['target']['vacs'] = ''
     reverse_post_order = list(
         nx.dfs_postorder_nodes(G, 'source')
@@ -159,9 +182,13 @@ def get_candidates(G, superreads):
             for predecessor in G.predecessors(node)
         ])
         G.nodes[node]['npath'] = number_of_current_paths
+    number_of_candidates = G.nodes['target']['npath']
+    if number_of_candidates > 10000:
+        error_message = '%d candidates... refusing to proceed!'
+        raise ValueError(error_message % number_of_candidates)
     print(
         'Obtaining',
-        G.nodes['target']['npath'],
+        number_of_candidates,
         'candidate quasispecies...'
         )
 
@@ -206,12 +233,10 @@ def get_candidates(G, superreads):
     return candidate_quasispecies, describing_superreads
 
 
-def candidates_io(input_graph_json, input_sr_json, output_describing_json):
+def candidates_io(input_graph_json, output_describing_json):
     with open(input_graph_json) as json_file:
         graph_json = json.load(json_file)
     G = nx.node_link_graph(graph_json)
-    with open(input_sr_json) as json_file:
-        superreads = json.load(json_file)
-    candidate_vacs, describing_superreads = get_candidates(G, superreads)
+    candidate_vacs, describing_superreads = get_candidates(G)
     with open(output_describing_json, 'w') as json_file:
         json.dump(describing_superreads, json_file, indent=2)

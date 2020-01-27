@@ -122,17 +122,11 @@ def read_reference_start_and_end(alignment, site_boundaries):
     return read_information
 
 
-def admission(minimum_weight):
-    def comparator(pair):
-        return pair[1][0] >= minimum_weight
-    return comparator
-
-
 def extract_label(query_name):
     return '-'.join(query_name.split('.')[:4]) if not '+' in query_name else 'AR'
 
 
-def obtain_superreads(alignment, covarying_sites, minimum_weight=3):
+def obtain_superreads(alignment, covarying_sites):
     read_information = read_reference_start_and_end(
         alignment, covarying_sites
     )
@@ -173,11 +167,10 @@ def obtain_superreads(alignment, covarying_sites, minimum_weight=3):
                 superreads[value_at_covarying_sites][2][label] += 1
             else:
                 superreads[value_at_covarying_sites] = [1, has_ar, {label: 1}]
-        admissible_superreads = list(filter(admission(minimum_weight), superreads.items()))
         total_weight = sum([
-            superread[1][0] for superread in admissible_superreads
+            superread[1][0] for superread in superreads.items()
         ])
-        for vacs, weight in admissible_superreads:
+        for vacs, weight in superreads.items():
             all_superreads.append({
                 'index': superread_index,
                 'vacs': vacs,

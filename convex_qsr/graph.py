@@ -30,10 +30,17 @@ def check_compatability(superread_i, superread_j, minimum_overlap=2):
         j_sequence = superread_j['vacs'][j_start: j_end]
         agree_on_overlap = i_sequence == j_sequence
         overlap = len(i_sequence)
+        weight = min(superread_i['weight'], superread_j['weight'])
+        support = overlap * weight
         long_enough = overlap >= minimum_overlap
         compatible = agree_on_overlap and long_enough
-        return (compatible, overlap)
-    return (False, 0)
+        edge_data = {
+            'weight': weight,
+            'overlap': overlap,
+            'support': support
+        }
+        return (compatible, edge_data)
+    return (False, {})
 
 
 def get_full_edge_list(G):
@@ -42,14 +49,14 @@ def get_full_edge_list(G):
         superread_i = G.nodes[superread_index_i]
         for superread_index_j in G.nodes:
             superread_j = G.nodes[superread_index_j]
-            should_include_edge, overlap = check_compatability(
+            should_include_edge, edge_data = check_compatability(
                 superread_i, superread_j
             )
             if should_include_edge:
                 edge_list.append({
                     'i': superread_i['index'],
                     'j': superread_j['index'],
-                    'overlap': overlap
+                    **edge_data
                 })
     return edge_list
 
@@ -98,7 +105,7 @@ def create_full(superreads, weight_percentile_cutoff=.1,
     )
     all_edges = get_full_edge_list(G)
     for edge in all_edges:
-        G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
+        G.add_edge(edge['i'], edge['j'], weight=edge['overlap'])
     return transitive_reduction(G)
 
 
@@ -126,23 +133,30 @@ def annotate_and_serialize_graph(G):
 
 def graph_io(input_srdata, output_json, graph_type='full',
         edges_per_node=3, weight_percentile_cutoff=.1,
-        minimum_weight=3):
+        minimum_weight=3, edge_key='overlap'):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     if graph_type == 'full':
         G = create_full(superreads)
-    else:
-        G = create_reduced(
+    elif graph_type == 'reduced':
+        G = create_simple_reduced(
             superreads, edges_per_node, weight_percentile_cutoff,
-            minimum_weight
+            minimum_weight, edge_key
         )
+    elif graph_type == 'incremental':
+        G = create_incremental_reduced(
+            superreads, weight_percentile_cutoff,
+            minimum_weight, edge_key
+        )
+    else:
+        raise ValueError('Encountered unknown graph type:i %s' % graph_type)
     superread_json = annotate_and_serialize_graph(G)
     with open(output_json, 'w') as json_file:
         json.dump(superread_json, json_file, indent=2)
 
 
-def create_reduced(superreads, edges_per_node=3, weight_percentile_cutoff=.1,
-        minimum_weight=3
+def create_simple_reduced(superreads, edges_per_node=2, weight_percentile_cutoff=.1,
+        minimum_weight=3, edge_key='overlap'
     ):
     G = initialize_superread_graph(
         superreads, weight_percentile_cutoff, minimum_weight
@@ -151,14 +165,40 @@ def create_reduced(superreads, edges_per_node=3, weight_percentile_cutoff=.1,
     grouped_edges = it.groupby(all_edges, lambda edge: edge['i'])
     for i, edges_i in grouped_edges:
         sorted_edges = sorted(
-            edges_i, reverse=True, key=lambda edge: edge['overlap']
+            edges_i, reverse=True, key=lambda edge: edge[edge_key]
         )
         for edge in it.islice(sorted_edges, 0, edges_per_node):
-            G.add_edge(edge['i'], edge['j'], overlap=edge['overlap'])
+            G.add_edge(edge['i'], edge['j'], weight=edge[edge_key])
     G_tr = transitive_reduction(G)
-    message = 'Built superread graph with %d nodes and %d edges...'
-    print(message % (len(G.nodes), len(G.edges)))
+    number_of_paths = dynamic_programming_path_count(G_tr)
+    message = 'Built superread graph with %d nodes, %d edges, and %d paths.'
+    print(message % (len(G_tr.nodes), len(G_tr.edges), number_of_paths))
     return G_tr
+
+
+def create_incremental_reduced(superreads, weight_percentile_cutoff=.1,
+        minimum_weight=3, edge_key='overlap', edges_per_iteration=100, max_paths=100):
+    G = initialize_superread_graph(
+        superreads, weight_percentile_cutoff, minimum_weight
+    )
+    all_edges = sorted(
+        get_full_edge_list(G),
+        key=lambda edge: edge[edge_key],
+        reverse=True
+    )
+    print('Building read graph incrementally...')
+    for i, edge in enumerate(all_edges):
+        G.add_edge(edge['i'], edge['j'], weight=edge[edge_key])
+        if i % edges_per_iteration == 0:
+            G = transitive_reduction(G)
+            number_of_paths = dynamic_programming_path_count(G)
+            print('Iteration:', i, ' -- Edges: ', len(G.edges), ' -- Paths: ', number_of_paths)
+            if number_of_paths > max_paths:
+                break
+    number_of_paths = dynamic_programming_path_count(G)
+    message = 'Built superread graph with %d nodes, %d edges, and %d paths.'
+    print(message % (len(G.nodes), len(G.edges), number_of_paths))
+    return G
 
 
 def get_candidates(G):

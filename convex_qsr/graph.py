@@ -155,8 +155,8 @@ def graph_io(input_srdata, output_json, graph_type='full',
         json.dump(superread_json, json_file, indent=2)
 
 
-def create_simple_reduced(superreads, edges_per_node=2, weight_percentile_cutoff=.1,
-        minimum_weight=3, edge_key='overlap'
+def create_simple_reduced(superreads, edges_per_node=2,
+        weight_percentile_cutoff=.5, minimum_weight=5, edge_key='overlap'
     ):
     G = initialize_superread_graph(
         superreads, weight_percentile_cutoff, minimum_weight

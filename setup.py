@@ -6,6 +6,7 @@ dev_dependencies = [
 
 setup(
     name='convex_qsr',
+    python_requires='>3.6.6',
     version='0.3.0',
     url='https://github.com/stephenshank/convex-qsr',
     download_url="https://github.com/stephenshank/convex-qsr/archive/v0.2.0.tar.gz",

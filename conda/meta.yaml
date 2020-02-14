@@ -7,11 +7,10 @@ build:
 
 source:
   url: https://github.com/stephenshank/convex-qsr/archive/v0.3.0.tar.gz
-  sha256: 0ee0f01f0d347cba3b6f9f7657a6fed3d42db2da39955d1c89110c6f54e63303
 
 requirements:
   host:
-    - python
+    - python >=3.6.7
     - setuptools
   run:
     - python

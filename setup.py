@@ -6,7 +6,7 @@ dev_dependencies = [
 
 setup(
     name='convex_qsr',
-    version='0.2.0',
+    version='0.3.0',
     url='https://github.com/stephenshank/convex-qsr',
     download_url="https://github.com/stephenshank/convex-qsr/archive/v0.2.0.tar.gz",
     description='Reference-guided viral quasipsecies reconstruction',

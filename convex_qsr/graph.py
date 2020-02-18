@@ -132,8 +132,8 @@ def annotate_and_serialize_graph(G):
 
 
 def graph_io(input_srdata, output_json, graph_type='full',
-        edges_per_node=3, weight_percentile_cutoff=.1,
-        minimum_weight=3, edge_key='overlap'):
+        edges_per_node=3, weight_percentile_cutoff=.5,
+        minimum_weight=5, edge_key='overlap'):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     if graph_type == 'full':

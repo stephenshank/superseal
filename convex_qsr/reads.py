@@ -206,7 +206,8 @@ def superread_json_io(bam_path, covarying_path, superread_path):
         json.dump(superreads, json_file, indent=2)
 
 
-def superread_fasta_io(input_cvs, input_srdata, output_fasta):
+def superread_fasta_io(input_cvs, input_srdata, output_fasta,
+        weight_filter=0, vacs_filter=0):
     with open(input_cvs) as json_file:
         cvs = json.load(json_file)
     with open(input_srdata) as json_file:
@@ -214,7 +215,11 @@ def superread_fasta_io(input_cvs, input_srdata, output_fasta):
     outfile = open(output_fasta, 'w')
     n_cvs = len(cvs)
     for sr in srdata:
-        outfile.write('>superread-%d\n' % sr['index'])
-        seq = sr['cv_start']*'-' + sr['vacs'] + (n_cvs - sr['cv_end'])*'-'
-        outfile.write(seq + '\n')
+        heavy_enough = sr['weight'] > weight_filter
+        long_enough = len(sr['vacs']) > vacs_filter
+        should_write = heavy_enough and long_enough
+        if should_write:
+            outfile.write('>superread-%d_weight-%d\n' % (sr['index'], sr['weight']))
+            seq = sr['cv_start']*'-' + sr['vacs'] + (n_cvs - sr['cv_end'])*'-'
+            outfile.write(seq + '\n')
     outfile.close()

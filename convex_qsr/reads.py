@@ -160,16 +160,19 @@ def obtain_superreads(alignment, covarying_sites):
             )
             has_ar = 1 if '+' in read.query_name else 0
             if value_at_covarying_sites in superreads:
-                superreads[value_at_covarying_sites]['weight'] += 1
-                superreads[value_at_covarying_sites]['ar'] += has_ar
-                if not label in superreads[value_at_covarying_sites]['composition']:
-                     superreads[value_at_covarying_sites]['composition'][label] = 0
-                superreads[value_at_covarying_sites]['composition'][label] += 1
+                current_superread = superreads[value_at_covarying_sites]
+                current_superread['weight'] += 1
+                current_superread['ar'] += has_ar
+                if not label in current_superread['composition']:
+                     current_superread['composition'][label] = 0
+                current_superread['composition'][label] += 1
+                current_superread['read_names'].append(read.query_name)
             else:
                 superreads[value_at_covarying_sites] = {
                     'weight': 1,
                     'ar': has_ar,
-                    'composition': {label: 1}
+                    'composition': {label: 1},
+                    'read_names': [read.query_name]
                 }
         total_weight = sum([
             superread[1]['weight'] for superread in superreads.items()
@@ -185,6 +188,7 @@ def obtain_superreads(alignment, covarying_sites):
                 'cv_start': int(covarying_boundaries[0]),
                 'cv_end': int(covarying_boundaries[1]),
                 'composition': info['composition'],
+                'read_names': info['read_names'],
                 'discarded': False
             })
             superread_index += 1

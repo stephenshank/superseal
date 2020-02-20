@@ -160,27 +160,31 @@ def obtain_superreads(alignment, covarying_sites):
             )
             has_ar = 1 if '+' in read.query_name else 0
             if value_at_covarying_sites in superreads:
-                superreads[value_at_covarying_sites][0] += 1
-                superreads[value_at_covarying_sites][1] += has_ar
-                if not label in superreads[value_at_covarying_sites][2]:
-                     superreads[value_at_covarying_sites][2][label] = 0
-                superreads[value_at_covarying_sites][2][label] += 1
+                superreads[value_at_covarying_sites]['weight'] += 1
+                superreads[value_at_covarying_sites]['ar'] += has_ar
+                if not label in superreads[value_at_covarying_sites]['composition']:
+                     superreads[value_at_covarying_sites]['composition'][label] = 0
+                superreads[value_at_covarying_sites]['composition'][label] += 1
             else:
-                superreads[value_at_covarying_sites] = [1, has_ar, {label: 1}]
+                superreads[value_at_covarying_sites] = {
+                    'weight': 1,
+                    'ar': has_ar,
+                    'composition': {label: 1}
+                }
         total_weight = sum([
-            superread[1][0] for superread in superreads.items()
+            superread[1]['weight'] for superread in superreads.items()
         ])
-        for vacs, weight in superreads.items():
+        for vacs, info in superreads.items():
             all_superreads.append({
                 'index': superread_index,
                 'vacs': vacs,
-                'weight': weight[0],
-                'frequency': weight[0]/total_weight,
-                'ar': weight[1],
-                'ar_frequency': weight[1]/weight[0],
+                'weight': info['weight'],
+                'frequency': info['weight']/total_weight,
+                'ar': info['ar'],
+                'ar_frequency': info['ar']/info['weight'],
                 'cv_start': int(covarying_boundaries[0]),
                 'cv_end': int(covarying_boundaries[1]),
-                'composition': weight[2],
+                'composition': info['composition'],
                 'discarded': False
             })
             superread_index += 1

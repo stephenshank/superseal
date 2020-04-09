@@ -7,6 +7,9 @@ import Container from "react-bootstrap/Container";
 import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { BAMViewer } from "alignment.js";
+import PDP from "alignment.js/prevent_default_patch";
+
+PDP(document);
 
 import ErrorCorrection from "./error_correction.jsx";
 import SuperReadGraph from "./super_read_graph.jsx";
@@ -27,7 +30,6 @@ function App() {
 			<Navbar.Brand>ACME Quasispecies Reconstruction</Navbar.Brand>
 			<Nav className="mr-auto">
 				<NavLink to="/" header="Mapped Reads" />
-				<NavLink to="/error-correction" header="Error Correction" />
 				<NavLink to="/super-read-graph" header="Super Read Graph" />
 				<NavLink to="/quasispecies-reconstruction" header="Quasispecies Reconstruction" />
 			</Nav>

@@ -1,5 +1,6 @@
 import React, { Component } from "react";
-import { SequenceBarChart, fastaParser } from "alignment.js";
+import SequenceBarChart from "alignment.js/SequenceBarChart";
+import fastaParser from "alignment.js/helpers/fasta";
 import axios from "axios";
 
 

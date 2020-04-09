@@ -4,11 +4,18 @@ import Row from "react-bootstrap/Row";
 import Col from "react-bootstrap/Col";
 import { scaleLinear } from "d3-scale";
 import { max } from "d3-array";
+import BaseAlignment from "alignment.js/components/BaseAlignment";
+import BaseSequenceBarPlot from "alignment.js/components/BaseSequenceBarPlot";
+import Placeholder from "alignment.js/components/Placeholder";
+import SequenceAxis from "alignment.js/components/SequenceAxis";
+import SiteAxis from "alignment.js/components/SiteAxis";
+import Network from "alignment.js/components/Network";
+import ScrollBroadcaster from "alignment.js/helpers/ScrollBroadcaster";
+import fastaParser from "alignment.js/helpers/fasta";
+import computeLabelWidth from "alignment.js/helpers/computeLabelWidth";
+import css_grid_format from "alignment.js/helpers/format";
+import AxisTop from "alignment.js/components/AxisTop";
 
-import { BaseAlignment, Placeholder, SiteAxis, AxisTop,
-  SequenceAxis, Network, BaseSequenceBarPlot, ScrollBroadcaster,
-  fastaParser, computeLabelWidth, css_grid_format
-} from "alignment.js";
 
 function SuperReadGraph(props) {
   const has_sequence_data = props.fasta || props.sequence_data;

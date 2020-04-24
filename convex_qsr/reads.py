@@ -102,7 +102,7 @@ def get_covarying_sites(alignment, threshold=.01, end_correction=10):
         id='consensus',
         description=''
     )
-    return covarying_sites[desired], consensus_record
+    return covarying_sites[desired], consensus_record, nucleotide_counts
 
 
 def read_reference_start_and_end(alignment, site_boundaries):
@@ -195,13 +195,14 @@ def obtain_superreads(alignment, covarying_sites):
     return all_superreads
 
 
-def covarying_sites_io(bam_path, json_path, fasta_path):
+def covarying_sites_io(bam_path, json_path, fasta_path, csv_path):
     alignment = pysam.AlignmentFile(bam_path, 'rb')
-    covarying_sites, consensus = get_covarying_sites(alignment)
+    covarying_sites, consensus, count_data = get_covarying_sites(alignment)
     covarying_sites_json = [int(site) for site in covarying_sites]
     with open(json_path, 'w') as json_file:
         json.dump(covarying_sites_json, json_file)
     SeqIO.write(consensus, fasta_path, 'fasta')
+    count_data.to_csv(csv_path)
 
 
 def superread_json_io(bam_path, covarying_path, superread_path):

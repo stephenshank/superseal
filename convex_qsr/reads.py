@@ -15,7 +15,7 @@ def single_read_count_data(read):
     sequence_length = np.array([
         cigar_tuple[1]
         for cigar_tuple in read.cigartuples
-        if cigar_tuple[0] != 1
+        if cigar_tuple[0] != 1 and cigar_tuple[0] != 4
     ]).sum()
     first_position = read.reference_start
     last_position = first_position + sequence_length
@@ -195,9 +195,13 @@ def obtain_superreads(alignment, covarying_sites):
     return all_superreads
 
 
-def covarying_sites_io(bam_path, json_path, fasta_path, csv_path):
+def covarying_sites_io(
+        bam_path, json_path, fasta_path, csv_path, threshold=.01
+        ):
     alignment = pysam.AlignmentFile(bam_path, 'rb')
-    covarying_sites, consensus, count_data = get_covarying_sites(alignment)
+    covarying_sites, consensus, count_data = get_covarying_sites(
+        alignment, threshold=threshold
+    )
     covarying_sites_json = [int(site) for site in covarying_sites]
     with open(json_path, 'w') as json_file:
         json.dump(covarying_sites_json, json_file)

@@ -12,18 +12,12 @@ characters = ['A', 'C', 'G', 'T', '-']
 
 
 def single_read_count_data(read):
-    sequence_length = np.array([
-        cigar_tuple[1]
-        for cigar_tuple in read.cigartuples
-        if cigar_tuple[0] != 1 and cigar_tuple[0] != 4
-    ]).sum()
-    first_position = read.reference_start
-    last_position = first_position + sequence_length
-    positions = np.arange(first_position, last_position)
     segments = []
     number_of_cigar_tuples = len(read.cigartuples)
     unaligned_sequence = read.query_alignment_sequence
-    position = 0
+    read_position = 0
+    reference_position = read.reference_start
+    positions = []
     for i, cigar_tuple in enumerate(read.cigartuples):
         action = cigar_tuple[0]
         stride = cigar_tuple[1]
@@ -32,15 +26,24 @@ def single_read_count_data(read):
         deletion = action == 2
         if match:
             segments.append(
-                unaligned_sequence[position: position + stride]
+                unaligned_sequence[read_position: read_position + stride]
                 )
-            position += stride
+            read_position += stride
+            positions.append(
+                np.arange(reference_position, reference_position + stride)
+            )
+            reference_position += stride
         elif insertion:
-            position += stride
+            read_position += stride
         elif deletion:
             if len(segments) > 0 and i < number_of_cigar_tuples:
                 segments.append(stride * '-')
+                positions.append(
+                    np.arange(reference_position, reference_position + stride)
+                )
+                reference_position += stride
     sequence = np.concatenate([list(segment) for segment in segments])
+    positions = np.concatenate(positions)
     return sequence, positions
 
 

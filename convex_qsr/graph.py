@@ -62,7 +62,7 @@ def get_full_edge_list(G):
 
 
 def initialize_superread_graph(superreads, weight_percentile_cutoff=.1,
-        minimum_weight=3
+        minimum_weight=3, minimum_cvs=3
         ):
     G = nx.DiGraph()
     n_cv = max([sr['cv_end'] for sr in superreads])
@@ -78,7 +78,11 @@ def initialize_superread_graph(superreads, weight_percentile_cutoff=.1,
     admissible_count = (superread_weights >= weight_cutoff).sum()
     print(message % (admissible_count, len(superreads)))
     for superread in superreads:
-        if superread['weight'] >= weight_cutoff:
+        meets_cutoff = superread['weight'] >= weight_cutoff
+        above_minimum = superread['weight'] >= minimum_weight
+        enough_covariation = len(superread['vacs']) >= minimum_cvs
+        admissible = meets_cutoff and above_minimum and enough_covariation
+        if admissible:
             G.add_node(superread['index'], **superread)
             if superread['cv_start'] == 0:
                 G.add_edge('source', superread['index'])
@@ -273,10 +277,15 @@ def get_candidates(G):
     return candidate_quasispecies, describing_superreads
 
 
-def candidates_io(input_graph_json, output_describing_json):
+def deserialize_graph(input_graph_json):
     with open(input_graph_json) as json_file:
         graph_json = json.load(json_file)
     G = nx.node_link_graph(graph_json)
+    return G
+
+
+def candidates_io(input_graph_json, output_describing_json):
+    G = deserialize_graph(input_graph_json)
     candidate_vacs, describing_superreads = get_candidates(G)
     with open(output_describing_json, 'w') as json_file:
         json.dump(describing_superreads, json_file, indent=2)

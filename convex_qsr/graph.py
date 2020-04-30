@@ -136,7 +136,7 @@ def annotate_and_serialize_graph(G):
 
 
 def graph_io(input_srdata, output_json, graph_type='full',
-        edges_per_node=3, weight_percentile_cutoff=.5,
+        edges_per_node=3, weight_percentile_cutoff=0,
         minimum_weight=5, edge_key='overlap'):
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
@@ -160,7 +160,7 @@ def graph_io(input_srdata, output_json, graph_type='full',
 
 
 def create_simple_reduced(superreads, edges_per_node=2,
-        weight_percentile_cutoff=.1, minimum_weight=5, edge_key='overlap'
+        weight_percentile_cutoff=.0, minimum_weight=5, edge_key='overlap'
     ):
     G = initialize_superread_graph(
         superreads, weight_percentile_cutoff, minimum_weight
@@ -289,3 +289,26 @@ def candidates_io(input_graph_json, output_describing_json):
     candidate_vacs, describing_superreads = get_candidates(G)
     with open(output_describing_json, 'w') as json_file:
         json.dump(describing_superreads, json_file, indent=2)
+
+
+def edge_list_io(input_json, output_csv, minimum_weight=5):
+    with open(input_json) as json_file:
+        superreads = [
+            sr
+            for sr in json.load(json_file)
+            if sr['weight'] >= minimum_weight
+        ]
+    edge_list = []
+    for i, superread_i in enumerate(superreads):
+        print(i, 'out of', len(superreads))
+        for superread_j in superreads:
+            should_include_edge, edge_data = check_compatability(
+                superread_i, superread_j
+            )
+            if should_include_edge:
+                edge_list.append({
+                    'i': superread_i['index'],
+                    'j': superread_j['index'],
+                    **edge_data
+                })
+    pd.DataFrame(edge_list).to_csv(output_csv)

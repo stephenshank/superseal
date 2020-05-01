@@ -10,3 +10,4 @@ from .graph import deserialize_graph
 from .regression import regression_io
 
 from .scaffold import scaffold_qsr_io
+from .scaffold import scaffold_candidates_io

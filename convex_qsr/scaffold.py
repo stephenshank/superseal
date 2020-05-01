@@ -2,9 +2,16 @@ import json
 
 import numpy as np
 import pandas as pd
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+from Bio import SeqIO
 
 from .graph import check_compatability
+from .reads import characters
 
+
+character_to_index_map = { char: i for i, char in enumerate(characters) }
+index_to_character_map = { i: char for i, char in enumerate(characters) }
 
 class Scaffold:
     def __init__(self, superread_i, superread_j, number_of_covarying_sites):
@@ -156,7 +163,11 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2, verbose=True):
         ],
         'coverage': [
             [int(i) for i in scaffold.coverage] for scaffold in scaffolds
-        ]
+        ],
+        'full_coverage': [
+            bool(np.all(scaffold.coverage)) for scaffold in scaffolds
+        ],
+        'number_of_covarying_sites': number_of_covarying_sites
     }
 
 
@@ -166,3 +177,43 @@ def scaffold_qsr_io(input_superreads, output_describing):
     describing_superreads = scaffold_qsr(superreads)
     with open(output_describing, 'w') as json_file:
         json.dump(describing_superreads, json_file, indent=2)
+
+
+def scaffold_reconstruction(superreads, description, max_qs=2):
+    number_of_candidates = np.sum(description['full_coverage'])
+    number_of_covarying_sites = description['number_of_covarying_sites']
+    covariation = [
+        number_of_covarying_sites * ['N']
+        for _ in range(number_of_candidates)
+    ]
+    for candidate_index, describe in enumerate(description['original_indices']):
+        counts = np.zeros((number_of_candidates, number_of_covarying_sites, 5))
+        for superread_index in describe:
+            superread = superreads[superread_index]
+            weight = superread['weight']
+            for vac_index, vac in enumerate(superread['vacs']):
+                character_index = character_to_index_map[vac]
+                site_index = superread['cv_start'] + vac_index
+                counts[candidate_index, site_index, character_index] += weight
+        for site_index in np.arange(number_of_covarying_sites):
+            character_index = np.argmax(counts[candidate_index, site_index])
+            character = index_to_character_map[character_index]
+            covariation[candidate_index][site_index] = character
+    fasta = [
+        SeqRecord(
+            Seq(''.join(candidate)),
+            id='candidate-%d' % i,
+            description=''
+        )
+        for i, candidate in enumerate(covariation)
+    ]
+    return fasta
+
+
+def scaffold_candidates_io(input_superreads, input_description, output_fasta):
+    with open(input_superreads) as json_file:
+        superreads = json.load(json_file)
+    with open(input_description) as json_file:
+        description = json.load(json_file)
+    fasta = scaffold_reconstruction(superreads, description)
+    SeqIO.write(fasta, output_fasta, 'fasta')

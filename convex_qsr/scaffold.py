@@ -6,21 +6,23 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 
-from .graph import check_compatability
 from .reads import characters
 
 
 character_to_index_map = { char: i for i, char in enumerate(characters) }
 index_to_character_map = { i: char for i, char in enumerate(characters) }
 
+
 class Scaffold:
-    def __init__(self, superread_i, superread_j, number_of_covarying_sites):
-        self.members = {}
-        self.coverage = np.zeros(number_of_covarying_sites, dtype=np.int)
-        self.merge_node(superread_i)
-        self.merge_node(superread_j)
+    def __init__(self, superreads, members=None):
+        self.members = members or {}
+        self.superreads = superreads
+        self.number_of_covarying_sites = max(sr['cv_end'] for sr in superreads)
+        self.coverage = np.zeros(self.number_of_covarying_sites, dtype=np.int)
 
     def merge_node(self, superread):
+        if superread['filtered_index'] in self.members:
+            return
         indices = np.arange(superread['cv_start'], superread['cv_end'])
         self.coverage[indices] += superread['weight']
         self.members[superread['filtered_index']] = True
@@ -44,6 +46,54 @@ class Scaffold:
     def check_membership_by_index(self, superread_index):
         return superread_index in self.members
 
+    def is_covered(self):
+        return np.all(self.coverage > 0)
+
+    def member_superreads(self):
+        return [self.superreads[i] for i in self.members.keys()]
+
+    def leftmost(self):
+        return min(self.member_superreads(), key=lambda sr: sr['cv_start'])
+
+    def rightmost(self):
+        return max(self.member_superreads(), key=lambda sr: sr['cv_end'])
+
+    def counts(self):
+        counts = np.zeros((self.number_of_covarying_sites, 5))
+        for superread_index in self.members.keys():
+            superread = self.superreads[superread_index]
+            weight = superread['weight']
+            for vac_index, vac in enumerate(superread['vacs']):
+                character_index = character_to_index_map[vac]
+                site_index = superread['cv_start'] + vac_index
+                counts[site_index, character_index] += weight
+        return counts
+
+    def consensus(self):
+        counts = self.counts()
+        consensus = np.array(
+            self.number_of_covarying_sites * ['N'], dtype='<U1'
+        )
+        for site_index in np.arange(self.number_of_covarying_sites):
+            character_index = np.argmax(counts[site_index, :])
+            character = index_to_character_map[character_index]
+            consensus[site_index] = character
+        return consensus
+
+    def extremities(self):
+        left = self.leftmost()
+        right = self.rightmost()
+        left_initiates = left['cv_start'] == 0
+        right_terminates = right['cv_end'] == self.number_of_covarying_sites
+        if left_initiates and not right_terminates:
+            return { 'left': None, 'right': right }
+        elif right_terminates and not left_initiates:
+            return { 'left': left, 'right': None }
+        elif left_initiates and right_terminates:
+            return { 'left': None, 'right': None }
+        else:
+            return { 'left': left, 'right': right }
+
 
 def filter_superreads(superreads, minimum_weight):
     filtered_superreads = list(filter(
@@ -59,6 +109,43 @@ def filter_superreads(superreads, minimum_weight):
     return filtered_superreads, number_of_covarying_sites
 
 
+def check_compatability(superread_i, superread_j, minimum_overlap=2):
+    if not 'index' in superread_i or not 'index' in superread_j:
+        return (False, 0)
+    if superread_i['index'] == superread_j['index']:
+        return (False, 0)
+    i_cv_start = superread_i['cv_start']
+    i_cv_end = superread_i['cv_end']
+    j_cv_start = superread_j['cv_start']
+    j_cv_end = superread_j['cv_end']
+    start_before_start = i_cv_start < j_cv_start
+    start_before_end = j_cv_start < i_cv_end
+    end_before_end = i_cv_end < j_cv_end
+    if start_before_start and start_before_end and end_before_end:
+        cv_start = max(i_cv_start, j_cv_start)
+        cv_end = min(i_cv_end, j_cv_end)
+        delta = cv_end - cv_start
+        i_start = cv_start - i_cv_start
+        i_end = i_start + delta
+        j_start = cv_start - j_cv_start
+        j_end = j_start + delta
+        i_sequence = superread_i['vacs'][i_start: i_end]
+        j_sequence = superread_j['vacs'][j_start: j_end]
+        agree_on_overlap = i_sequence == j_sequence
+        overlap = len(i_sequence)
+        weight = min(superread_i['weight'], superread_j['weight'])
+        support = overlap * weight
+        long_enough = overlap >= minimum_overlap
+        compatible = agree_on_overlap and long_enough
+        edge_data = {
+            'weight': weight,
+            'overlap': overlap,
+            'support': support
+        }
+        return (compatible, edge_data)
+    return (False, {})
+
+
 def get_edge_list(superreads):
     edge_list = []
     for i, superread_i in enumerate(superreads):
@@ -70,9 +157,10 @@ def get_edge_list(superreads):
                 edge_list.append({
                     'i': i,
                     'j': j,
+                    'available': True,
                     **edge_data
                 })
-    return pd.DataFrame(edge_list).sort_values(by='support', ascending=False)
+    return pd.DataFrame(edge_list).sort_values(by='overlap', ascending=False)
 
 
 def check_integrity(scaffolds):
@@ -82,7 +170,32 @@ def check_integrity(scaffolds):
                 assert not scaffold_j.check_membership_by_index(member)
 
 
-def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2, verbose=True):
+def scaffold_descriptions(scaffolds):
+    superreads = scaffolds[0].superreads
+    number_of_covarying_sites = scaffolds[0].number_of_covarying_sites
+    return {
+        'describing_superreads': [
+            sorted([int(member) for member in scaffold.members.keys()])
+            for scaffold in scaffolds
+        ],
+        'original_indices': [
+            sorted([
+                int(superreads[member]['index'])
+                for member in scaffold.members.keys()
+            ])
+            for scaffold in scaffolds
+        ],
+        'coverage': [
+            [int(i) for i in scaffold.coverage] for scaffold in scaffolds
+        ],
+        'full_coverage': [
+            bool(np.all(scaffold.coverage)) for scaffold in scaffolds
+        ],
+        'number_of_covarying_sites': number_of_covarying_sites
+    }
+
+
+def scaffold_qsr_greedy(all_superreads, minimum_weight=5, max_qs=2, verbose=True):
     superreads, number_of_covarying_sites = filter_superreads(
         all_superreads, minimum_weight
     )
@@ -149,32 +262,93 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2, verbose=True):
             print(fully_covered, '>=', max_qs, 'quasispecies... terminating!')
             break
         check_integrity(scaffolds)
-    return {
-        'describing_superreads': [
-            sorted([int(member) for member in scaffold.members.keys()])
-            for scaffold in scaffolds
-        ],
-        'original_indices': [
-            sorted([
-                int(superreads[member]['index'])
-                for member in scaffold.members.keys()
+    return scaffold_descriptions(scaffolds)
+
+
+def invalidate_edges(edges, sr_index):
+    uses_node = (edges['i'] == sr_index) | (edges['j'] == sr_index)
+    edges.loc[uses_node, 'available'] = False
+
+
+def get_initial_node(superreads, node_hash, metric):
+    superread = max(
+        [sr for sr in superreads if node_hash[sr['filtered_index']]],
+        key=lambda sr: sr['weight']
+    )
+    node_hash[superread['filtered_index']] = False
+    return superread
+
+
+def get_nodes_for_extension(edges, scaffold, metric):
+    extremal_nodes = scaffold.extremities()
+    available_edges = edges.loc[edges.available, :]
+    nodes = []
+    if not extremal_nodes['left'] is None:
+        left_index = extremal_nodes['left']['filtered_index']
+        extends_left = available_edges['j'] == left_index
+        left_extending_edges = available_edges.loc[extends_left, metric]
+        best_edge = left_extending_edges.nlargest(1).index[0]
+        nodes.append(available_edges.loc[best_edge, 'i'])
+    if not extremal_nodes['right'] is None:
+        right_index = extremal_nodes['right']['filtered_index']
+        extends_right = available_edges['i'] == right_index
+        right_extending_edges = available_edges.loc[extends_right, metric]
+        try:
+            best_edge = right_extending_edges.nlargest(1).index[0]
+        except:
+            import pdb; pdb.set_trace()
+        nodes.append(available_edges.loc[best_edge, 'j'])
+    return nodes
+
+
+def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
+        verbose=True, metric='support'):
+    superreads, number_of_covarying_sites = filter_superreads(
+        all_superreads, minimum_weight
+    )
+    edges = get_edge_list(superreads)
+    node_hash = {i: True for i in range(len(superreads))}
+    scaffolds = []
+    for i in range(max_qs):
+        if verbose:
+            print('Scaffold %d of %d...\n' % (i+1, max_qs), end='')
+        scaffold = Scaffold(superreads)
+        initial_superread = get_initial_node(superreads, node_hash, metric)
+        scaffold.merge_node(initial_superread)
+        
+        # Expansion
+        while not scaffold.is_covered():
+            new_nodes = get_nodes_for_extension(edges, scaffold, metric)
+            for node_index in new_nodes:
+                scaffold.merge_node(superreads[node_index])
+                node_hash[node_index] = False
+            if verbose:
+                message = 'Covering %f percent of covarying sites...' 
+                data = np.sum(scaffold.coverage > 0) / number_of_covarying_sites
+                print(message % data)
+
+        # Absorption
+        consensus = scaffold.consensus()
+        for superread in superreads:
+            relevant_consensus = '.'.join(consensus[
+                superread['cv_start']: superread['cv_end']
             ])
-            for scaffold in scaffolds
-        ],
-        'coverage': [
-            [int(i) for i in scaffold.coverage] for scaffold in scaffolds
-        ],
-        'full_coverage': [
-            bool(np.all(scaffold.coverage)) for scaffold in scaffolds
-        ],
-        'number_of_covarying_sites': number_of_covarying_sites
-    }
+            if superread['vacs'] == relevant_consensus:
+                scaffold.merge_node(superread)
+                node_hash[superread['filtered_index']] == False
+        if verbose:
+            print('...done!')
+        scaffolds.append(scaffold)
+    print('Obtained superreads that describe %d quasispecies!!' % max_qs)
+    return scaffold_descriptions(scaffolds)
 
 
-def scaffold_qsr_io(input_superreads, output_describing):
+def scaffold_qsr_io(
+        input_superreads, output_describing, minimum_weight=5, max_qs=2
+        ):
     with open(input_superreads) as json_file:
         superreads = json.load(json_file)
-    describing_superreads = scaffold_qsr(superreads)
+    describing_superreads = scaffold_qsr(superreads, minimum_weight, max_qs)
     with open(output_describing, 'w') as json_file:
         json.dump(describing_superreads, json_file, indent=2)
 

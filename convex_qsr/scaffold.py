@@ -223,3 +223,35 @@ def scaffold_candidates_io(
     fasta, frequencies = scaffold_reconstruction(superreads, description)
     SeqIO.write(fasta, output_fasta, 'fasta')
     frequencies.to_csv(output_csv)
+
+
+def simple_scaffold_reconstruction(
+        candidates, frequencies, consensus, covarying_sites
+        ):
+    frequencies = np.sum(frequencies, axis=1) / frequencies.shape[1]
+    frequencies = frequencies / np.sum(frequencies)
+    for i, record in enumerate(candidates):
+        label_content = 'quasispecies-%d_frequency-%.2f'
+        label_data = (i, frequencies[i])
+        record.id = label_content % label_data
+        vacs = np.array(list(str(record.seq)), dtype='<U1')
+        seq = np.copy(consensus)
+        seq[covarying_sites] = vacs
+        record.seq = Seq(''.join(seq))
+        record.description = ''
+    return candidates
+
+
+def simple_scaffold_reconstruction_io(
+        input_candidates, input_frequencies, input_consensus, input_covarying_sites,
+        output_quasispecies
+    ):
+    candidates = list(SeqIO.parse(input_candidates, 'fasta'))
+    consensus = SeqIO.read(input_consensus, 'fasta')
+    frequencies = pd.read_csv(input_frequencies).values.T[1:,:]
+    with open(input_covarying_sites) as json_file:
+        covarying_sites = np.array(json.load(json_file), dtype=np.int)
+    quasispecies = simple_scaffold_reconstruction(
+        candidates, frequencies, consensus, covarying_sites
+    )
+    SeqIO.write(quasispecies, output_quasispecies, 'fasta')

@@ -186,8 +186,8 @@ def scaffold_reconstruction(superreads, description, max_qs=2):
         number_of_covarying_sites * ['N']
         for _ in range(number_of_candidates)
     ]
+    counts = np.zeros((number_of_candidates, number_of_covarying_sites, 5))
     for candidate_index, describe in enumerate(description['original_indices']):
-        counts = np.zeros((number_of_candidates, number_of_covarying_sites, 5))
         for superread_index in describe:
             superread = superreads[superread_index]
             weight = superread['weight']
@@ -207,13 +207,19 @@ def scaffold_reconstruction(superreads, description, max_qs=2):
         )
         for i, candidate in enumerate(covariation)
     ]
-    return fasta
+    compressed_counts = np.sum(counts, axis=2)
+    total_counts = np.sum(compressed_counts, axis=0)
+    frequencies = pd.DataFrame((compressed_counts / total_counts).T)
+    return fasta, frequencies
 
 
-def scaffold_candidates_io(input_superreads, input_description, output_fasta):
+def scaffold_candidates_io(
+        input_superreads, input_description, output_fasta, output_csv
+    ):
     with open(input_superreads) as json_file:
         superreads = json.load(json_file)
     with open(input_description) as json_file:
         description = json.load(json_file)
-    fasta = scaffold_reconstruction(superreads, description)
+    fasta, frequencies = scaffold_reconstruction(superreads, description)
     SeqIO.write(fasta, output_fasta, 'fasta')
+    frequencies.to_csv(output_csv)

@@ -314,6 +314,11 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
             print('Scaffold %d of %d...\n' % (i+1, max_qs), end='')
         scaffold = Scaffold(superreads)
         initial_superread = get_initial_node(superreads, node_hash, metric)
+        if verbose:
+            message = 'Seed superread for quasispecies %d: %d'
+            data = (i+1, initial_superread['index'])
+            print(message % data)
+            print('Percent of covarying sites covered:', end='')
         scaffold.merge_node(initial_superread)
         
         # Expansion
@@ -323,21 +328,25 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
                 scaffold.merge_node(superreads[node_index])
                 node_hash[node_index] = False
             if verbose:
-                message = 'Covering %f percent of covarying sites...' 
+                message = '%.2f ' 
                 data = np.sum(scaffold.coverage > 0) / number_of_covarying_sites
-                print(message % data)
+                print(message % data, end='')
 
         # Absorption
         consensus = scaffold.consensus()
-        for superread in superreads:
-            relevant_consensus = '.'.join(consensus[
+        number_absorbed = 0
+        for superread in [sr for sr in superreads if node_hash[sr['filtered_index']]]:
+            relevant_consensus = ''.join(consensus[
                 superread['cv_start']: superread['cv_end']
             ])
             if superread['vacs'] == relevant_consensus:
+                number_absorbed += 1
                 scaffold.merge_node(superread)
-                node_hash[superread['filtered_index']] == False
+                node_hash[superread['filtered_index']] = False
         if verbose:
-            print('...done!')
+            remaining = np.sum(np.array(list(node_hash.values())))
+            print('...done! Absorbed %d superreads.' % number_absorbed)
+            print(remaining, 'remaining.')
         scaffolds.append(scaffold)
     print('Obtained superreads that describe %d quasispecies!!' % max_qs)
     return scaffold_descriptions(scaffolds)

@@ -1,6 +1,7 @@
 from .reads import covarying_sites_io
 from .reads import superread_json_io
 from .reads import superread_fasta_io
+from .reads import resolvable_regions_io
 
 from .graph import graph_io
 from .graph import candidates_io

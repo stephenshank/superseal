@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import pysam
 
+from .io import write_json
+
 
 characters = ['A', 'C', 'G', 'T', '-']
 
@@ -86,7 +88,8 @@ def site_table(alignment):
     return pd.concat([df, df.apply(supplementary_info, axis=1)], axis=1)
 
 
-def get_covarying_sites(alignment, threshold=.01, end_correction=10):
+def get_covarying_sites(alignment, threshold=.01, end_correction=10,
+        minimum_coverage=100):
     nucleotide_counts = site_table(alignment)
     above_threshold = (
         nucleotide_counts
@@ -98,7 +101,9 @@ def get_covarying_sites(alignment, threshold=.01, end_correction=10):
     after_head_correction = covarying_sites > end_correction
     final_site = number_of_sites - end_correction
     before_tail_correction = covarying_sites < final_site
-    desired = after_head_correction & before_tail_correction
+    coverage = nucleotide_counts.loc[covarying_sites, 'coverage']
+    well_covered = coverage > minimum_coverage
+    desired = after_head_correction & before_tail_correction & well_covered
     consensus_sequence = ''.join(nucleotide_counts['consensus'])
     consensus_record = SeqRecord(
         Seq(consensus_sequence),
@@ -239,3 +244,30 @@ def superread_fasta_io(input_cvs, input_srdata, output_fasta,
             seq = sr['cv_start']*'-' + sr['vacs'] + (n_cvs - sr['cv_end'])*'-'
             outfile.write(seq + '\n')
     outfile.close()
+
+
+def resolvable_regions(superreads):
+    number_of_covarying_sites = max([
+        sr['cv_end'] for sr in superreads
+    ])
+    pair_counts = np.zeros(number_of_covarying_sites - 1)
+    for sr in superreads:
+        pair_counts[sr['cv_start']: sr['cv_end'] - 1] += sr['weight']
+    insufficient_coverage = list(np.where(pair_counts == 0)[0])
+    starts = [0] + insufficient_coverage
+    stops = insufficient_coverage + [number_of_covarying_sites]
+    regions = [
+        { 'start': int(start), 'stop': int(stop) }
+        for start, stop in zip(starts, stops)
+    ]
+    return {
+        'pair_counts': [int(pair) for pair in pair_counts],
+        'regions': regions
+    }
+
+
+def resolvable_regions_io(input_srdata, output_json):
+    with open(input_srdata) as json_file:
+        superreads = json.load(json_file)
+    regions = resolvable_regions(superreads)
+    write_json(output_json, regions)

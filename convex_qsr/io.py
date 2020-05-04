@@ -1,3 +1,4 @@
+import argparse
 import json
 
 from Bio import SeqIO
@@ -17,3 +18,13 @@ def write_fasta(path, data):
 def write_csv(path, data):
     if path:
         data.to_csv(path)
+
+
+def read_json(path):
+    with open(path) as json_file:
+        data = json.load(json_file)
+    return data
+
+
+def full_pipeline_io():
+    pass

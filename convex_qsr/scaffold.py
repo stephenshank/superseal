@@ -7,6 +7,7 @@ from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
 
 from .reads import characters
+from .io import read_json, write_json
 
 
 character_to_index_map = { char: i for i, char in enumerate(characters) }
@@ -170,9 +171,15 @@ def check_integrity(scaffolds):
                 assert not scaffold_j.check_membership_by_index(member)
 
 
-def scaffold_descriptions(scaffolds):
+def scaffold_descriptions(scaffolds, all_superreads):
     superreads = scaffolds[0].superreads
     number_of_covarying_sites = scaffolds[0].number_of_covarying_sites
+    utilized = set([
+        member
+        for scaffold in scaffolds
+        for member in list(scaffold.members.keys())
+    ])
+    unused = [i for i in range(len(all_superreads)) if not i in utilized]
     return {
         'describing_superreads': [
             sorted([int(member) for member in scaffold.members.keys()])
@@ -188,9 +195,11 @@ def scaffold_descriptions(scaffolds):
         'coverage': [
             [int(i) for i in scaffold.coverage] for scaffold in scaffolds
         ],
+        'unused': unused,
         'full_coverage': [
             bool(np.all(scaffold.coverage)) for scaffold in scaffolds
         ],
+        'consensus': [''.join(scaffold.consensus()) for scaffold in scaffolds],
         'number_of_covarying_sites': number_of_covarying_sites
     }
 
@@ -287,17 +296,16 @@ def get_nodes_for_extension(edges, scaffold, metric):
         left_index = extremal_nodes['left']['filtered_index']
         extends_left = available_edges['j'] == left_index
         left_extending_edges = available_edges.loc[extends_left, metric]
-        best_edge = left_extending_edges.nlargest(1).index[0]
-        nodes.append(available_edges.loc[best_edge, 'i'])
+        if len(left_extending_edges) > 0:
+            best_edge = left_extending_edges.nlargest(1).index[0]
+            nodes.append(available_edges.loc[best_edge, 'i'])
     if not extremal_nodes['right'] is None:
         right_index = extremal_nodes['right']['filtered_index']
         extends_right = available_edges['i'] == right_index
         right_extending_edges = available_edges.loc[extends_right, metric]
-        try:
+        if len(right_extending_edges) > 0:
             best_edge = right_extending_edges.nlargest(1).index[0]
-        except:
-            import pdb; pdb.set_trace()
-        nodes.append(available_edges.loc[best_edge, 'j'])
+            nodes.append(available_edges.loc[best_edge, 'j'])
     return nodes
 
 
@@ -309,6 +317,7 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
     edges = get_edge_list(superreads)
     node_hash = {i: True for i in range(len(superreads))}
     scaffolds = []
+    stop_early = False
     for i in range(max_qs):
         if verbose:
             print('Scaffold %d of %d...\n' % (i+1, max_qs), end='')
@@ -332,6 +341,15 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
                 data = np.sum(scaffold.coverage > 0) / number_of_covarying_sites
                 print(message % data, end='')
 
+            if len(new_nodes) == 0 and not scaffold.is_covered():
+                stop_early = True
+                break
+
+        if stop_early:
+            if verbose:
+                print('Stopping early... unable to fully cover!')
+            return scaffold_descriptions(scaffolds[:-1])
+
         # Absorption
         consensus = scaffold.consensus()
         number_absorbed = 0
@@ -349,7 +367,7 @@ def scaffold_qsr(all_superreads, minimum_weight=5, max_qs=2,
             print(remaining, 'remaining.')
         scaffolds.append(scaffold)
     print('Obtained superreads that describe %d quasispecies!!' % max_qs)
-    return scaffold_descriptions(scaffolds)
+    return scaffold_descriptions(scaffolds, all_superreads)
 
 
 def scaffold_qsr_io(
@@ -438,3 +456,40 @@ def simple_scaffold_reconstruction_io(
         candidates, frequencies, consensus, covarying_sites
     )
     SeqIO.write(quasispecies, output_quasispecies, 'fasta')
+
+
+def ar_rate_estimation(superreads, description):
+    total_weight = sum([sr['weight'] for sr in superreads])
+    ar_weight = 0
+    ar_reads = []
+    all_consensus = description['consensus']
+    for sr in superreads:
+        if sr['cv_end'] - sr['cv_start'] != len(sr['vacs']):
+            print('WARNING! Discordance in superread data for:', sr['index'])
+            continue
+        matches = [0 for _ in range(len(all_consensus))]
+        for qs_index, qs_consensus in enumerate(all_consensus):
+            cvs = range(sr['cv_start'], sr['cv_end'])
+            for vacs_index, cvs_index in enumerate(cvs):
+                qs_character = qs_consensus[cvs_index]
+                superread_character = sr['vacs'][vacs_index]
+                characters_agree = qs_character == superread_character
+                if characters_agree:
+                    matches[qs_index] += 1
+        top_matches = sorted(matches, reverse=True)[:2]
+        tag_as_ar = top_matches[0] > 0 and top_matches[1] > 0
+        if tag_as_ar:
+            ar_weight += sr['weight']
+            ar_reads.append(sr['index'])
+    ar_rate_estimate = ar_weight / total_weight
+    return {
+        'ar_rate_estimate': ar_rate_estimate,
+        'ar_reads': ar_reads
+    }
+
+
+def ar_rate_estimation_io(input_superreads, input_description, output_json):
+    superreads = read_json(input_superreads)
+    description = read_json(input_description)
+    ar_info = ar_rate_estimation(superreads, description)
+    write_json(output_json, ar_info)

@@ -13,3 +13,6 @@ from .regression import regression_io
 from .scaffold import scaffold_qsr_io
 from .scaffold import scaffold_candidates_io
 from .scaffold import simple_scaffold_reconstruction_io
+from .scaffold import ar_rate_estimation_io 
+
+from .io import full_pipeline_io

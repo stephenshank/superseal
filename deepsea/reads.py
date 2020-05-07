@@ -211,10 +211,13 @@ def covarying_sites_io(
         alignment, threshold=threshold
     )
     covarying_sites_json = [int(site) for site in covarying_sites]
-    with open(json_path, 'w') as json_file:
-        json.dump(covarying_sites_json, json_file)
-    SeqIO.write(consensus, fasta_path, 'fasta')
-    count_data.to_csv(csv_path)
+    if json_path:
+        with open(json_path, 'w') as json_file:
+            json.dump(covarying_sites_json, json_file)
+    if fasta_path:
+        SeqIO.write(consensus, fasta_path, 'fasta')
+    if csv_path:
+        count_data.to_csv(csv_path)
 
 
 def superread_json_io(bam_path, covarying_path, superread_path):

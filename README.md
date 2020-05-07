@@ -1,31 +1,21 @@
-# convex-qsr
+# deepsea
 
-Reference-guided viral quasispecies reconstruction using convex optimization. **Under development**.
+Reference-guided viral quasispecies reconstruction. **Under development**.
 
 ## Install
 
-Available via [conda](https://anaconda.org/) from the [stephenshank](https://anaconda.org/stephenshank/) channel (coming soon to [bioconda](https://bioconda.github.io)):
+Coming to soon to PyPI and Bioconda. For now:
 
 ```
-conda config --add channels stephenshank
-conda install convex-qsr
-```
-
-Also available via `pip` and the [PyPI](https://pypi.org/project/convex-qsr/):
-
-```
-pip install convex-qsr
+git clone https://github.com/stephenshank/deepsea
+cd deepsea
+pip install .
 ```
 
 ## Run
 
-```
-cqsr_ec -b sorted.bam -o output
-cqsr_rg -i output -o output
-cqsr_qr -i output -o output
-```
+For a list of available options:
 
-## Test
 ```
-python -m unittest discover
+deepsea
 ```

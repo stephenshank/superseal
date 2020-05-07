@@ -1,14 +1,14 @@
-# deepsea
+# superseal
 
-Reference-guided viral quasispecies reconstruction. **Under development**.
+SUPERread Seed Expansion, Absorption, and Localization. A toolkit for reference-guided viral quasispecies reconstruction. **Under development**.
 
 ## Install
 
 Coming to soon to PyPI and Bioconda. For now:
 
 ```
-git clone https://github.com/stephenshank/deepsea
-cd deepsea
+git clone https://github.com/stephenshank/superseal
+cd superseal
 pip install .
 ```
 
@@ -17,5 +17,5 @@ pip install .
 For a list of available options:
 
 ```
-deepsea
+superseal
 ```

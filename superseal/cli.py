@@ -8,16 +8,16 @@ from .reads import resolvable_regions_io
 
 
 description="""
-deepsea - DEEP sequencing by Seed Expansion and Absorption
+superseal - SUPERread Seed Expansion, Absorption, and Localization
 
 Written by Stephen D. Shank, Ph. D.
 Acme Computational Molecular Evolution Group - http://lab.hyphy.org/
-https://github.com/stephenshank/deepsea
+https://github.com/stephenshank/superseal
 
 Further help:
-    deepsea covariation --help
-    deepsea superreads --help
-    deepsea resolve --help
+    superseal covariation --help
+    superseal superreads --help
+    superseal resolve --help
 """
 
 
@@ -40,7 +40,7 @@ def resolve_cli(args):
 def command_line_interface():
     if len(sys.argv) == 1:
         print(description)
-        print("Usage: deepsea -h or deepsea --help")
+        print("Usage: superseal -h or superseal --help")
         sys.exit(0)
 
     main_parser = argparse.ArgumentParser(
@@ -70,7 +70,7 @@ def command_line_interface():
     cvs_subparser.add_argument(
         "-t",
         "--threshold",
-        help="covariable site CSV",
+        help="threshold for discerning error from variation",
         dest="threshold",
         default=.01
     )

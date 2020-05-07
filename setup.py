@@ -2,11 +2,11 @@ from setuptools import setup
 
 
 setup(
-    name='deepsea',
+    name='superseal',
     python_requires='>3.6.6',
     version='0.0.1',
-    url='https://github.com/stephenshank/deepsea',
-    download_url="https://github.com/stephenshank/deepsea/archive/v0.0.1.tar.gz",
+    url='https://github.com/stephenshank/superseal',
+    download_url="https://github.com/stephenshank/superseal/archive/v0.0.1.tar.gz",
     description='Reference-guided viral quasipsecies reconstruction',
     author='Stephen D. Shank',
     author_email='sshank314@gmail.com',
@@ -20,10 +20,10 @@ setup(
         'networkx>=2.3',
         'numpy>=1.16.4',
     ],
-    packages=['deepsea'],
+    packages=['superseal'],
     entry_points={
         'console_scripts': [
-            'deepsea = deepsea.cli:command_line_interface'
+            'superseal = superseal.cli:command_line_interface'
         ]
     },
     classifiers=[

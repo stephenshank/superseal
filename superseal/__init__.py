@@ -10,9 +10,8 @@ from .graph import deserialize_graph
 
 from .regression import regression_io
 
-from .scaffold import scaffold_qsr_io
-from .scaffold import scaffold_candidates_io
-from .scaffold import simple_scaffold_reconstruction_io
-from .scaffold import ar_rate_estimation_io 
+from .assembly import assemble_io
+from .assembly import local_reconstruction_io
+from .assembly import ar_rate_estimation_io 
 
 from .io import full_pipeline_io

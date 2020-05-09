@@ -6,6 +6,9 @@ from .reads import superread_json_io
 from .reads import superread_fasta_io 
 from .reads import resolvable_regions_io
 
+from .assembly import assemble_io
+from .assembly import local_reconstruction_io
+
 
 description="""
 superseal - SUPERread Seed Expansion, Absorption, and Localization
@@ -18,6 +21,8 @@ Further help:
     superseal covariation --help
     superseal superreads --help
     superseal resolve --help
+    superseal assemble --help
+    superseal localreconstruct --help
 """
 
 
@@ -35,6 +40,16 @@ def superreads_cli(args):
 
 def resolve_cli(args):
     resolvable_regions_io(args.sr, args.rr)
+
+
+def assemble_cli(args):
+    assemble_io(args.sr, args.rr, args.assembly, max_qs=args.mq)
+
+
+def local_reconstruction_cli(args):
+    local_reconstruction_io(
+        args.sr, args.assem, args.con, args.var, args.reg, args.fasta
+    )
 
 
 def command_line_interface():
@@ -118,6 +133,85 @@ def command_line_interface():
         dest="rr",
         required=True
     )
+
+
+    as_description = "Assemble regions."
+    as_subparser = subparsers.add_parser(
+        "assemble", description=rr_description
+    )
+    as_subparser.set_defaults(func=assemble_cli)
+    as_subparser.add_argument(
+        "-s", "--superreads", help="input superreads", dest="sr", required=True
+    )
+    as_subparser.add_argument(
+        "-r",
+        "--resolvable",
+        help="resolvable regions",
+        dest="rr",
+        required=True
+    )
+    as_subparser.add_argument(
+        "-a",
+        "--assembly",
+        help="assembled superreads",
+        dest="assembly",
+        required=True
+    )
+    as_subparser.add_argument(
+        "-m",
+        "--maximum_quasispecies",
+        help="maximum number of quasispecies",
+        dest="mq",
+        default=2,
+        type=int
+    )
+
+
+    lr_description = "Perform local reconstruction."
+    lr_subparser = subparsers.add_parser(
+        "localreconstruct", description=lr_description
+    )
+    lr_subparser.set_defaults(func=local_reconstruction_cli)
+    lr_subparser.add_argument(
+        "-s", "--superreads", help="input superreads", dest="sr", required=True
+    )
+    lr_subparser.add_argument(
+        "-a",
+        "--assembly",
+        help="assembled superreads",
+        dest="assem",
+        required=True
+    )
+    lr_subparser.add_argument(
+        "-c",
+        "--consensus",
+        help="consensus sequence",
+        dest="con",
+        required=True
+    )
+    lr_subparser.add_argument(
+        "-v",
+        "--variation",
+        help="covarying sites",
+        dest="var",
+        required=True
+    )
+    lr_subparser.add_argument(
+        "-r",
+        "--region",
+        help="region to resolve",
+        dest="reg",
+        required=True,
+        type=int
+    )
+    lr_subparser.add_argument(
+        "-f",
+        "--f",
+        help="quasispecies fasta",
+        dest="fasta",
+        required=True
+    )
+
 
     args = main_parser.parse_args()
     args.func(args)

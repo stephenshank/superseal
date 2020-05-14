@@ -32,4 +32,5 @@ setup(
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         'License :: OSI Approved :: MIT License',
     ],
+    include_package_data=True
 )

@@ -3,7 +3,7 @@ const path = require("path"),
   MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 
-const static_dir = path.resolve(__dirname, "convex_qsr", "static"),
+const static_dir = path.resolve(__dirname, "superseal", "viz"),
   port = 8123;
 
 module.exports = {
@@ -13,7 +13,9 @@ module.exports = {
     filename: "main.js"
   },
   plugins: [
-    new HtmlWebpackPlugin(),
+    new HtmlWebpackPlugin({
+      title: "SuperSEAL"
+    }),
     new MiniCssExtractPlugin({
       filename: "style.css",
     })
@@ -46,12 +48,6 @@ module.exports = {
   devServer: {
     port: port,
     historyApiFallback: true,
-    contentBase: static_dir,
-    proxy: {
-      "/api": {
-        target: "http://localhost:" + port,
-        pathRewrite: {"/api": "/output"}
-      }
-    }
+    contentBase: static_dir
   }
 };

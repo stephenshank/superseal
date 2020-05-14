@@ -1,0 +1,9 @@
+index.html
+main.js
+style.css
+*.json
+*.bam
+*.bam.bai
+*.sam
+*.fasta
+*.csv

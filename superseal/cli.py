@@ -1,5 +1,10 @@
+import os
 import sys
 import argparse
+from http.server import BaseHTTPRequestHandler
+from http.server import HTTPServer
+import webbrowser
+
 
 from .reads import covarying_sites_io
 from .reads import superread_json_io 
@@ -23,7 +28,34 @@ Further help:
     superseal resolve --help
     superseal assemble --help
     superseal localreconstruct --help
+    superseal view --help
 """
+
+
+class Server(BaseHTTPRequestHandler):
+    def do_GET(self):
+        print(os.getcwd())
+
+        base_dir = os.path.dirname(__file__)
+        static_resources =['index.html', 'main.js', 'style.css', 'favicon.ico']
+        if self.path == '/':
+            path = os.path.join(base_dir, 'viz', 'index.html')
+            header = "text/html"
+        elif self.path[1:] in static_resources:
+            path  = os.path.join(base_dir, 'viz', self.path[1:])
+            if self.path[1:] == 'style.css':
+                header = "text/css"
+            else:
+                header = "text/html"
+        else:
+            path = os.path.join(os.getcwd(), 'superreads.json')
+            header = "text/json"
+
+        self.send_response(200)
+        self.send_header("Content-type", header)
+        self.end_headers()
+        with open(path, 'rb') as f:
+            self.wfile.write(f.read())
 
 
 def covarying_sites_cli(args):
@@ -50,6 +82,18 @@ def local_reconstruction_cli(args):
     local_reconstruction_io(
         args.sr, args.assem, args.con, args.var, args.reg, args.fasta
     )
+
+
+def view_cli(args):
+    myServer = HTTPServer(("localhost", 8749), Server)
+
+    try:
+        webbrowser.open("http://localhost:8749", autoraise=True)
+        myServer.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+    myServer.server_close()
 
 
 def command_line_interface():
@@ -211,6 +255,13 @@ def command_line_interface():
         dest="fasta",
         required=True
     )
+
+
+    view_description = "Visualize data."
+    view_subparser = subparsers.add_parser(
+        "view", description=view_description
+    )
+    view_subparser.set_defaults(func=view_cli)
 
 
     args = main_parser.parse_args()

@@ -8,32 +8,47 @@ import Col from "react-bootstrap/Col";
 import { json } from "d3";
 import PDP from "alignment.js/prevent_default_patch";
 
+import Superreads from "./superreads.jsx";
+
 PDP(document);
 
 import "./style.scss";
 
 
+function Header(props) {
+  return (<div>
+    <Navbar bg="light">
+      <Navbar.Brand>SuperSEAL</Navbar.Brand>
+    </Navbar>
+    <Container>
+      {props.children}
+    </Container>
+  </div>);
+}
+
 class App extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      superreads: null
+      superreads: null,
+      viewing: "superreads"
     }
   }
   componentDidMount() {
     json("/superreads.json")
       .then(json => {
-        console.log(json);
+        json.number_of_sites = json.map(superread => superread.cv_end)
+          .reduce((acc, curr) => Math.max(acc, curr), 0);
+        this.setState({superreads: json});
       });
   }
   render() {
-    return (<div>
-      <Navbar bg="light">
-        <Navbar.Brand>SuperSEAL</Navbar.Brand>
-      </Navbar>
-      <Container>
-      </Container>
-    </div>);
+    switch (this.state.viewing) {
+      case "superreads":
+        return(<Header>
+          <Superreads json={this.state.superreads} />
+        </Header>);
+    }
   }
 }
 

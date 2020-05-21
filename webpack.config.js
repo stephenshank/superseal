@@ -1,5 +1,6 @@
 const path = require("path"),
   HtmlWebpackPlugin = require("html-webpack-plugin"),
+  UglifyJsPlugin = require("uglifyjs-webpack-plugin"),
   MiniCssExtractPlugin = require("mini-css-extract-plugin");
 
 
@@ -49,5 +50,8 @@ module.exports = {
     port: port,
     historyApiFallback: true,
     contentBase: static_dir
+  },
+  optimization: {
+    minimizer: [new UglifyJsPlugin()]
   }
 };

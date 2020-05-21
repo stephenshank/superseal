@@ -66,12 +66,28 @@ function filter_and_count(superreads, weight_filter, index_filter) {
   };
 }
 
+
+
+function Help() {
+  return (<div>
+    <p>This visualization displays superreads restricted to covarying sites,
+    along with their weights and nucleotide frequencies.</p>
+    <p><b>Wheel</b> while hovering over the alignment to scroll through it.</p>
+    <p><b>Filter</b> superreads by their weight by inputting to the weight filter.</p>
+    <p><b>Click</b> a superread label to highlight differences among other superreads.
+    Click the same label to unhighlight.</p>
+    <p><b>View</b> underlying JSON by clicking the `View JSON` button.</p>
+  </div>);
+}
+
+
 class Superreads extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
       weight_filter: 0,
       show_json: false,
+      show_help: false,
       index_filter: null,
       highlight: null
     }
@@ -151,6 +167,13 @@ class Superreads extends React.Component {
         >
           View JSON
         </Button>
+        <Button
+          onClick={()=>this.setState({show_help: true})}
+          className="float-right"
+        >
+          Help
+        </Button>
+
       </div>
       <div id="alignmentjs-main-div" style={container_style}>
         <svg width={label_width} height={bar_height}>
@@ -239,6 +262,18 @@ class Superreads extends React.Component {
               collapsed={1}
             />
           </div>
+        </Modal.Body>
+      </Modal>
+      <Modal
+        show={this.state.show_help}
+        onHide={() => this.setState({show_help: false})}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Help</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          <Help />
         </Modal.Body>
       </Modal>
     </div>);

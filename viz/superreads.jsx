@@ -1,12 +1,12 @@
 import React from "react";
-import { AxisLeft } from "d3-react-axis";
-import { scaleLinear, max, range } from "d3";
+import { AxisLeft, AxisTop } from "d3-react-axis";
+import { scaleLinear, range, max } from "d3";
 
 import BaseAlignment from "alignment.js/components/BaseAlignment";
-import SiteAxis from "alignment.js/components/SiteAxis";
 import SequenceAxis from "alignment.js/components/SequenceAxis";
 import Placeholder from "alignment.js/components/Placeholder";
 import BaseSiteStackedBarChart from "alignment.js/components/BaseSiteStackedBarChart";
+import BaseSequenceBarPlot from "alignment.js/components/BaseSequenceBarPlot";
 import ScrollBroadcaster from "alignment.js/helpers/ScrollBroadcaster";
 import { nucleotide_color, nucleotide_text_color } from "alignment.js/helpers/colors";
 import computeLabelWidth from "alignment.js/helpers/computeLabelWidth";
@@ -59,7 +59,8 @@ function filter_and_count(superreads, weight_filter, index_filter) {
         counts.G[i] / counts.total[i],
         counts.T[i] / counts.total[i],
       ];
-    })
+    }),
+    weights: superreads.map(sr => sr.weight)
   };
 }
 
@@ -73,10 +74,10 @@ class Superreads extends React.Component {
   }
   render() {
     if (!this.props.json) return null;
-    const { sequence_data, counts } = filter_and_count(
+    const { sequence_data, counts, weights } = filter_and_count(
         this.props.json, this.state.weight_filter, this.state.index_filter
       ),
-      { width, bar_height, height, site_size, label_padding } = this.props,
+      { width, bar_height, height, site_size, label_padding, bar_width } = this.props,
       label_width = computeLabelWidth(sequence_data, label_padding),
       full_pixel_width = sequence_data[0].seq.length * site_size,
       full_pixel_height = sequence_data.length * site_size,
@@ -84,9 +85,11 @@ class Superreads extends React.Component {
       base_alignment_height = height - bar_height,
       alignment_width = Math.min(full_pixel_width, base_alignment_width),
       alignment_height = Math.min(full_pixel_height, height - bar_height),
+      frequency_scale = scaleLinear().domain([0, 1]).range([bar_height-1, 0]),
+      weight_scale = scaleLinear().domain([0, max(weights)]).range([0, bar_width-1]),
       container_style = {
         display: "grid",
-        gridTemplateColumns: css_grid_format([label_width, alignment_width]),
+        gridTemplateColumns: css_grid_format([label_width, alignment_width, bar_width]),
         gridTemplateRows: css_grid_format([bar_height, alignment_height])
       },
       scroll_broadcaster = new ScrollBroadcaster({
@@ -97,18 +100,49 @@ class Superreads extends React.Component {
         bidirectional: [
           "alignmentjs-alignment",
           "alignmentjs-stacked-bar",
-          "alignmentjs-labels-div"
+          "alignmentjs-labels-div",
+          "alignmentjs-bar"
         ]
       });
 
     return (<div id="alignmentjs-main-div" style={container_style}>
-      <Placeholder width={label_width} height={bar_height} />
+      <svg width={label_width} height={bar_height}>
+        <text
+          x={label_width-40}
+          y={bar_height/2}
+          textAnchor="middle"
+          alignmentBaseline="middle"
+          transform={`rotate(-90 ${label_width-40} ${bar_height/2})`}
+        >
+          Frequency
+        </text>
+        <AxisLeft
+          scale={frequency_scale}
+          transform={`translate(${label_width-1}, 0)`}
+          tickValues={range(.1, 1, .1)}
+        />
+      </svg>
       <BaseSiteStackedBarChart
         width={alignment_width}
         height={bar_height}
         data={counts}
         scroll_broadcaster={scroll_broadcaster}
       />
+      <svg width={bar_width} height={bar_height}>
+        <text
+          x={bar_width/2}
+          y={bar_height - 30}
+          textAnchor="middle"
+          alignmentBaseline="middle"
+        >
+          Weight
+        </text>
+        <AxisTop
+          scale={weight_scale}
+          transform={`translate(0, ${bar_height-1})`}
+          tickValues={weight_scale.ticks(5).slice(1)}
+        />
+      </svg>
       <SequenceAxis
         width={label_width}
         height={alignment_height}
@@ -126,6 +160,13 @@ class Superreads extends React.Component {
         molecule={this.props.molecule}
         scroll_broadcaster={scroll_broadcaster}
       />
+      <BaseSequenceBarPlot
+        data={weights}
+        width={bar_width}
+        height={alignment_height}
+        scroll_broadcaster={scroll_broadcaster}
+        scale={weight_scale}
+      />
     </div>);
   }
 }
@@ -139,6 +180,7 @@ Superreads.defaultProps = {
   right_bar_padding: 20,
   site_size: 20,
   bar_height: 100,
+  bar_width: 100,
   width: 960,
   height: 500,
   sender: "main",

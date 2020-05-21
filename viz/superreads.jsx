@@ -93,6 +93,7 @@ class Superreads extends React.Component {
         gridTemplateColumns: css_grid_format([label_width, alignment_width, bar_width]),
         gridTemplateRows: css_grid_format([bar_height, alignment_height])
       },
+      max_weight = this.props.json.reduce((acc, curr) => Math.max(acc, curr.weight), 0),
       scroll_broadcaster = new ScrollBroadcaster({
         width: full_pixel_width,
         height: full_pixel_height,
@@ -115,7 +116,9 @@ class Superreads extends React.Component {
           type="number"
           min="0"
           value={this.state.weight_filter}
-          onChange={e => this.setState({weight_filter: e.target.value})}
+          onChange={e => this.setState({
+            weight_filter: Math.min(e.target.value, max_weight) || null}
+          )}
           style={{width: 50}}
         />
         <Button

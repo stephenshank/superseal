@@ -10,7 +10,9 @@ import SequenceAxis from "alignment.js/components/SequenceAxis";
 import BaseSiteStackedBarChart from "alignment.js/components/BaseSiteStackedBarChart";
 import BaseSequenceBarPlot from "alignment.js/components/BaseSequenceBarPlot";
 import ScrollBroadcaster from "alignment.js/helpers/ScrollBroadcaster";
-import { nucleotide_color, nucleotide_text_color } from "alignment.js/helpers/colors";
+import {
+  nucleotide_color, nucleotide_colors
+} from "alignment.js/helpers/colors";
 import computeLabelWidth from "alignment.js/helpers/computeLabelWidth";
 import css_grid_format from "alignment.js/helpers/format";
 
@@ -70,7 +72,8 @@ class Superreads extends React.Component {
     this.state = {
       weight_filter: 0,
       show_json: false,
-      index_filter: null
+      index_filter: null,
+      highlight: null
     }
   }
   render() {
@@ -93,7 +96,26 @@ class Superreads extends React.Component {
         gridTemplateColumns: css_grid_format([label_width, alignment_width, bar_width]),
         gridTemplateRows: css_grid_format([bar_height, alignment_height])
       },
-      max_weight = this.props.json.reduce((acc, curr) => Math.max(acc, curr.weight), 0),
+      max_weight = this.props.json.reduce(
+        (acc, curr) => Math.max(acc, curr.weight), 0
+      ),
+      label_fills = Array(sequence_data.length).fill("black"),
+      site_color = this.state.highlight != null ?
+        (mol, site, header) => {
+          const chosen_superread = sequence_data[this.state.highlight];
+          if (header == chosen_superread.header) return nucleotide_colors[mol];
+          if (mol == "-") return nucleotide_colors["-"];
+          return mol == chosen_superread.seq[site - 1]
+            ? "#EEE"
+            : nucleotide_colors[mol];
+        } : nucleotide_color,
+      molecule = this.state.highlight != null ?
+        (mol, site, header) => {
+          const chosen_superread = sequence_data[this.state.highlight];
+          if (header == chosen_superread.header) return mol;
+          if (mol == "-") return "-";
+          return mol == chosen_superread.seq[site - 1] ? "." : mol;
+        } : mol => mol,
       scroll_broadcaster = new ScrollBroadcaster({
         width: full_pixel_width,
         height: full_pixel_height,
@@ -106,7 +128,9 @@ class Superreads extends React.Component {
           "alignmentjs-bar"
         ]
       });
-
+    if(this.state.highlight != null) {
+      label_fills[this.state.highlight] = "red";
+    }
     return (<div>
       <div className="toolbar">
         <span className="toolbar-item">
@@ -172,15 +196,22 @@ class Superreads extends React.Component {
           sequence_data={sequence_data}
           site_size={site_size}
           scroll_broadcaster={scroll_broadcaster}
+          fill={label_fills}
+          onClick={(label, i) => {
+            if(this.state.highlight == i) {
+              this.setState({highlight: null})
+            } else {
+              this.setState({highlight: i})
+            }
+          }}
         />
         <BaseAlignment
           sequence_data={sequence_data}
           width={alignment_width}
           height={alignment_height}
-          site_color={this.props.site_color}
-          text_color={this.props.text_color}
+          site_color={site_color}
           site_size={this.props.site_size}
-          molecule={this.props.molecule}
+          molecule={molecule}
           scroll_broadcaster={scroll_broadcaster}
         />
         <BaseSequenceBarPlot
@@ -216,8 +247,6 @@ class Superreads extends React.Component {
 
 
 Superreads.defaultProps = {
-  site_color: nucleotide_color,
-  text_color: nucleotide_text_color,
   label_padding: 10,
   left_bar_padding: 10,
   right_bar_padding: 20,
@@ -227,7 +256,6 @@ Superreads.defaultProps = {
   width: 960,
   height: 500,
   sender: "main",
-  molecule: mol => mol
 };
 
 

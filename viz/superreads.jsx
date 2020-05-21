@@ -2,6 +2,9 @@ import React from "react";
 import { AxisLeft, AxisTop } from "d3-react-axis";
 import { scaleLinear, range, max } from "d3";
 
+import Button from "react-bootstrap/Button";
+import Modal from "react-bootstrap/Modal";
+import ReactJson from "react-json-view";
 import BaseAlignment from "alignment.js/components/BaseAlignment";
 import SequenceAxis from "alignment.js/components/SequenceAxis";
 import BaseSiteStackedBarChart from "alignment.js/components/BaseSiteStackedBarChart";
@@ -66,6 +69,7 @@ class Superreads extends React.Component {
     super(props);
     this.state = {
       weight_filter: 0,
+      show_json: false,
       index_filter: null
     }
   }
@@ -114,6 +118,12 @@ class Superreads extends React.Component {
           onChange={e => this.setState({weight_filter: e.target.value})}
           style={{width: 50}}
         />
+        <Button
+          onClick={()=>this.setState({show_json: true})}
+          className="float-right"
+        >
+          View JSON
+        </Button>
       </div>
       <div id="alignmentjs-main-div" style={container_style}>
         <svg width={label_width} height={bar_height}>
@@ -178,6 +188,25 @@ class Superreads extends React.Component {
           scale={weight_scale}
         />
       </div>
+      <Modal
+        size="lg"
+        show={this.state.show_json}
+        onHide={() => this.setState({show_json: false})}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>Superread JSON</Modal.Title>
+        </Modal.Header>
+
+        <Modal.Body>
+          <div style={{height: 500, overflowY: "scroll"}}>
+            <ReactJson
+              src={this.props.json}
+              displayDataTypes={false}
+              collapsed={1}
+            />
+          </div>
+        </Modal.Body>
+      </Modal>
     </div>);
   }
 }

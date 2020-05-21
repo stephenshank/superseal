@@ -4,7 +4,6 @@ import { scaleLinear, range, max } from "d3";
 
 import BaseAlignment from "alignment.js/components/BaseAlignment";
 import SequenceAxis from "alignment.js/components/SequenceAxis";
-import Placeholder from "alignment.js/components/Placeholder";
 import BaseSiteStackedBarChart from "alignment.js/components/BaseSiteStackedBarChart";
 import BaseSequenceBarPlot from "alignment.js/components/BaseSequenceBarPlot";
 import ScrollBroadcaster from "alignment.js/helpers/ScrollBroadcaster";
@@ -16,9 +15,7 @@ import css_grid_format from "alignment.js/helpers/format";
 function filter_and_count(superreads, weight_filter, index_filter) {
   const filtered_superreads = superreads.filter(superread => {
     const { weight, index } = superread,
-      right_weight = weight_filter ?
-        weight >= weight_filter[0] && weight <= weight_filter[1] :
-        true,
+      right_weight = weight >= weight_filter || 0,
       right_index = index_filter ?
         index >= index_filter[0] && index <= index_filter[1] :
         true;
@@ -39,13 +36,13 @@ function filter_and_count(superreads, weight_filter, index_filter) {
       counts.total[site_index] += superread.weight;
     }
   });
-  const sequence_data = superreads.map((superread, i) => {
+  const sequence_data = filtered_superreads.map(superread => {
     const head_gaps = '-'.repeat(superread.cv_start),
       tail_gaps = '-'.repeat(superreads.number_of_sites - superread.cv_end),
       seq = head_gaps + superread.vacs + tail_gaps;
     return {
       seq: seq,
-      header: 'superread-' + (i+1)
+      header: 'superread-' + (superread.index)
     };
   });
   sequence_data.number_of_sequences = sequence_data.length;
@@ -60,7 +57,7 @@ function filter_and_count(superreads, weight_filter, index_filter) {
         counts.T[i] / counts.total[i],
       ];
     }),
-    weights: superreads.map(sr => sr.weight)
+    weights: filtered_superreads.map(sr => sr.weight)
   };
 }
 
@@ -68,7 +65,7 @@ class Superreads extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      weight_filter: null,
+      weight_filter: 0,
       index_filter: null
     }
   }
@@ -105,68 +102,82 @@ class Superreads extends React.Component {
         ]
       });
 
-    return (<div id="alignmentjs-main-div" style={container_style}>
-      <svg width={label_width} height={bar_height}>
-        <text
-          x={label_width-40}
-          y={bar_height/2}
-          textAnchor="middle"
-          alignmentBaseline="middle"
-          transform={`rotate(-90 ${label_width-40} ${bar_height/2})`}
-        >
-          Frequency
-        </text>
-        <AxisLeft
-          scale={frequency_scale}
-          transform={`translate(${label_width-1}, 0)`}
-          tickValues={range(.1, 1, .1)}
+    return (<div>
+      <div className="toolbar">
+        <span className="toolbar-item">
+          Weight filter:
+        </span>
+        <input
+          type="number"
+          min="0"
+          value={this.state.weight_filter}
+          onChange={e => this.setState({weight_filter: e.target.value})}
+          style={{width: 50}}
         />
-      </svg>
-      <BaseSiteStackedBarChart
-        width={alignment_width}
-        height={bar_height}
-        data={counts}
-        scroll_broadcaster={scroll_broadcaster}
-      />
-      <svg width={bar_width} height={bar_height}>
-        <text
-          x={bar_width/2}
-          y={bar_height - 30}
-          textAnchor="middle"
-          alignmentBaseline="middle"
-        >
-          Weight
-        </text>
-        <AxisTop
+      </div>
+      <div id="alignmentjs-main-div" style={container_style}>
+        <svg width={label_width} height={bar_height}>
+          <text
+            x={label_width-40}
+            y={bar_height/2}
+            textAnchor="middle"
+            alignmentBaseline="middle"
+            transform={`rotate(-90 ${label_width-40} ${bar_height/2})`}
+          >
+            Frequency
+          </text>
+          <AxisLeft
+            scale={frequency_scale}
+            transform={`translate(${label_width-1}, 0)`}
+            tickValues={range(.1, 1, .1)}
+          />
+        </svg>
+        <BaseSiteStackedBarChart
+          width={alignment_width}
+          height={bar_height}
+          data={counts}
+          scroll_broadcaster={scroll_broadcaster}
+        />
+        <svg width={bar_width} height={bar_height}>
+          <text
+            x={bar_width/2}
+            y={bar_height - 30}
+            textAnchor="middle"
+            alignmentBaseline="middle"
+          >
+            Weight
+          </text>
+          <AxisTop
+            scale={weight_scale}
+            transform={`translate(0, ${bar_height-1})`}
+            tickValues={weight_scale.ticks(3).slice(1)}
+          />
+        </svg>
+        <SequenceAxis
+          width={label_width}
+          height={alignment_height}
+          sequence_data={sequence_data}
+          site_size={site_size}
+          scroll_broadcaster={scroll_broadcaster}
+        />
+        <BaseAlignment
+          sequence_data={sequence_data}
+          width={alignment_width}
+          height={alignment_height}
+          site_color={this.props.site_color}
+          text_color={this.props.text_color}
+          site_size={this.props.site_size}
+          molecule={this.props.molecule}
+          scroll_broadcaster={scroll_broadcaster}
+        />
+        <BaseSequenceBarPlot
+          data={weights}
+          width={bar_width}
+          height={alignment_height}
+          scroll_broadcaster={scroll_broadcaster}
           scale={weight_scale}
-          transform={`translate(0, ${bar_height-1})`}
-          tickValues={weight_scale.ticks(5).slice(1)}
         />
-      </svg>
-      <SequenceAxis
-        width={label_width}
-        height={alignment_height}
-        sequence_data={sequence_data}
-        site_size={site_size}
-        scroll_broadcaster={scroll_broadcaster}
-      />
-      <BaseAlignment
-        sequence_data={sequence_data}
-        width={alignment_width}
-        height={alignment_height}
-        site_color={this.props.site_color}
-        text_color={this.props.text_color}
-        site_size={this.props.site_size}
-        molecule={this.props.molecule}
-        scroll_broadcaster={scroll_broadcaster}
-      />
-      <BaseSequenceBarPlot
-        data={weights}
-        width={bar_width}
-        height={alignment_height}
-        scroll_broadcaster={scroll_broadcaster}
-        scale={weight_scale}
-      />
+      </div>
     </div>);
   }
 }
@@ -180,7 +191,7 @@ Superreads.defaultProps = {
   right_bar_padding: 20,
   site_size: 20,
   bar_height: 100,
-  bar_width: 100,
+  bar_width: 200,
   width: 960,
   height: 500,
   sender: "main",

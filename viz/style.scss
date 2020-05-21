@@ -2,3 +2,13 @@
 @import "~bootstrap/scss/bootstrap";
 @import "~bootswatch/dist/spacelab/bootswatch";
 @import "~alignment.js/styles";
+
+.toolbar {
+  display: "flex";
+  align-items: "center";
+  margin: 10px;
+}
+
+.toolbar-item {
+  margin-left: 30px;
+}

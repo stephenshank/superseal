@@ -17,6 +17,8 @@ import computeLabelWidth from "alignment.js/helpers/computeLabelWidth";
 import css_grid_format from "alignment.js/helpers/format";
 
 
+const valid_characters = ["A", "C", "G", "T", "-"];
+
 function filter_and_count(superreads, weight_filter, index_filter) {
   const filtered_superreads = superreads.filter(superread => {
     const { weight, index } = superread,
@@ -37,8 +39,10 @@ function filter_and_count(superreads, weight_filter, index_filter) {
     for(let i=0; i < superread.vacs.length; i++) {
       let character = superread.vacs[i],
         site_index = superread.cv_start + i;
-      counts[character][site_index] += superread.weight;
-      counts.total[site_index] += superread.weight;
+      if (valid_characters.includes(character)) {
+        counts[character][site_index] += superread.weight;
+        counts.total[site_index] += superread.weight;
+      }
     }
   });
   const sequence_data = filtered_superreads.map(superread => {

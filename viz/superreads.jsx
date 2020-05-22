@@ -3,6 +3,7 @@ import { AxisLeft, AxisTop } from "d3-react-axis";
 import { scaleLinear, range, max } from "d3";
 
 import Button from "react-bootstrap/Button";
+import Spinner from "react-bootstrap/Spinner";
 import Modal from "react-bootstrap/Modal";
 import ReactJson from "react-json-view";
 import BaseAlignment from "alignment.js/components/BaseAlignment";
@@ -97,7 +98,18 @@ class Superreads extends React.Component {
     }
   }
   render() {
-    if (!this.props.json) return null;
+    if (!this.props.json) {
+      return (<div style={{
+        display: "flex",
+        flexDirection: "row",
+        alignItems: "center"
+      }}>
+        <Spinner animation="border" role="status">
+          <span className="sr-only">Loading...</span>
+        </Spinner>
+        <h2 style={{marginBottom: 0, marginLeft: 10}}>Loading...</h2>
+      </div>);
+      }
     const { sequence_data, counts, weights } = filter_and_count(
         this.props.json, this.state.weight_filter, this.state.index_filter
       ),

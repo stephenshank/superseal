@@ -6,6 +6,7 @@ from Bio import SeqIO
 import numpy as np
 import pandas as pd
 import pysam
+import vcf
 
 from .io import write_json
 
@@ -220,9 +221,18 @@ def covarying_sites_io(
         count_data.to_csv(csv_path)
 
 
+def covariation_input(covarying_path):
+    if covarying_path.split('.')[-1] == 'json':
+        with open(covarying_path) as json_file:
+            covarying_sites = np.array(json.load(json_file), dtype=np.int)
+        return covarying_sites
+    vcf_reader = vcf.Reader(filename=covarying_path)
+    unique_ordered_sites = sorted([variant.POS - 1 for variant in vcf_reader])
+    return np.array(unique_ordered_sites)
+
+
 def superread_json_io(bam_path, covarying_path, superread_path):
-    with open(covarying_path) as json_file:
-        covarying_sites = np.array(json.load(json_file), dtype=np.int)
+    covarying_sites = covariation_input(covarying_path)
     alignment = pysam.AlignmentFile(bam_path, 'rb')
 
     superreads = obtain_superreads(alignment, covarying_sites)
@@ -232,6 +242,7 @@ def superread_json_io(bam_path, covarying_path, superread_path):
 
 def superread_fasta_io(input_cvs, input_srdata, output_fasta,
         weight_filter=0, vacs_filter=0):
+    cvs = covariation_input(input_cvs)
     with open(input_cvs) as json_file:
         cvs = json.load(json_file)
     with open(input_srdata) as json_file:

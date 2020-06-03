@@ -8,8 +8,6 @@ from .graph import candidates_io
 from .graph import edge_list_io
 from .graph import deserialize_graph
 
-from .regression import regression_io
-
 from .assembly import assemble_io
 from .assembly import local_reconstruction_io
 from .assembly import ar_rate_estimation_io 

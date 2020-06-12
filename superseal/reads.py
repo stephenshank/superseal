@@ -27,6 +27,9 @@ def single_read_count_data(read):
         match = action == 0
         insertion = action == 1
         deletion = action == 2
+        softclip = action == 4
+        hardclip = action == 5
+
         if match:
             segments.append(
                 unaligned_sequence[read_position: read_position + stride]
@@ -45,6 +48,10 @@ def single_read_count_data(read):
                     np.arange(reference_position, reference_position + stride)
                 )
                 reference_position += stride
+        elif softclip:
+            read_position += stride
+        elif hardclip:
+            pass
     sequence = np.concatenate([list(segment) for segment in segments])
     positions = np.concatenate(positions)
     return sequence, positions
@@ -162,7 +169,7 @@ def obtain_superreads(alignment, covarying_sites):
             ]
             value_at_covarying_sites = ''.join(
                 [
-                    read.query[triplet[0]].upper()
+                    read.seq[triplet[0]].upper()
                     for triplet in read.get_aligned_pairs(True)
                     if triplet[1] in covarying_sites_in_read
                 ]

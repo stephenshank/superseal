@@ -13,10 +13,10 @@ setup(
     maintainer='Stephen D. Shank',
     maintainer_email='sshank314@gmail.com',
     install_requires=[
-        'biopython>=1.73',
-        'numpy>=1.18.5',
+        'biopython>=1.76',
+        'numpy>=1.18.4',
         'pandas>=1.0.0',
-        'pysam>=0.16.0',
+        'pysam>=0.15.4',
         'PyVCF>=0.6.8'
     ],
     packages=['superseal'],

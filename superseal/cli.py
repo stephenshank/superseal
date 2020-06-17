@@ -37,7 +37,13 @@ class Server(BaseHTTPRequestHandler):
         print(os.getcwd())
 
         base_dir = os.path.dirname(__file__)
-        static_resources =['index.html', 'main.js', 'style.css', 'favicon.ico']
+        static_resources = [
+            'index.html',
+            'main.js',
+            'style.css',
+            'favicon.ico',
+            'logo.png'
+        ]
         if self.path == '/':
             path = os.path.join(base_dir, 'viz', 'index.html')
             header = "text/html"
@@ -45,6 +51,8 @@ class Server(BaseHTTPRequestHandler):
             path  = os.path.join(base_dir, 'viz', self.path[1:])
             if self.path[1:] == 'style.css':
                 header = "text/css"
+            elif self.path[-3:] == 'png':
+                header = "image/png"
             else:
                 header = "text/html"
         else:
@@ -131,7 +139,8 @@ def command_line_interface():
         "--threshold",
         help="threshold for discerning error from variation",
         dest="threshold",
-        default=.01
+        default=.01,
+        type=float
     )
 
 

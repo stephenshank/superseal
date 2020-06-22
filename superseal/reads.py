@@ -1,4 +1,5 @@
 import json
+from collections import Counter
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -234,7 +235,14 @@ def covariation_input(covarying_path):
             covarying_sites = np.array(json.load(json_file), dtype=np.int)
         return covarying_sites
     vcf_reader = vcf.Reader(filename=covarying_path)
-    unique_ordered_sites = sorted([variant.POS - 1 for variant in vcf_reader])
+    position_counter = Counter()
+    for variant in vcf_reader:
+        position_counter[variant.POS - 1] += 1
+    unique_ordered_sites = sorted([
+        site
+        for site, count in position_counter
+        if count > 1
+    ])
     return np.array(unique_ordered_sites)
 
 

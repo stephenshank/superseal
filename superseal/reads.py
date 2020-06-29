@@ -1,3 +1,4 @@
+"Module for dealing with aligned reads."
 import json
 from collections import Counter
 
@@ -16,6 +17,7 @@ characters = ['A', 'C', 'G', 'T', '-']
 
 
 def single_read_count_data(read):
+    "Handle a single read."
     segments = []
     number_of_cigar_tuples = len(read.cigartuples)
     unaligned_sequence = read.query_alignment_sequence
@@ -34,7 +36,7 @@ def single_read_count_data(read):
         if match:
             segments.append(
                 unaligned_sequence[read_position: read_position + stride]
-                )
+            )
             read_position += stride
             positions.append(
                 np.arange(reference_position, reference_position + stride)
@@ -59,6 +61,7 @@ def single_read_count_data(read):
 
 
 def all_read_count_data(alignment):
+    "Process all reads."
     reference_length = alignment.header['SQ'][0]['LN']
     counts = np.zeros((reference_length, 5))
     for read in alignment.fetch():
@@ -70,6 +73,7 @@ def all_read_count_data(alignment):
 
 
 def supplementary_info(row):
+    "Get additional information derived from counts."
     result = row.loc[['A', 'C', 'G', 'T']] \
         .sort_values(ascending=False)
     result.index = ['c1', 'c2', 'c3', 'c4']
@@ -79,26 +83,31 @@ def supplementary_info(row):
     ))
 
 
-def zeros(df, character):
-    return (df[character] == 0).astype(np.int)
+def zeros(site_data, character):
+    "Count zeros associated with a nucleotide."
+    return (site_data[character] == 0).astype(np.int)
 
 
 def site_table(alignment):
+    "Get extra information associated with each site."
     counts = all_read_count_data(alignment)
-    df = pd.DataFrame(counts, columns=characters)
-    col_0s = zeros(df, 'A') + zeros(df, 'C') + zeros(df, 'G') + zeros(df, 'T')
-    df['interesting'] = col_0s < 3
-    df['nucleotide_max'] = df[['A', 'C', 'G', 'T']].max(axis=1)
-    df['coverage'] = df[['A', 'C', 'G', 'T']].sum(axis=1)
-    df['consensus'] = '-'
+    count_data = pd.DataFrame(counts, columns=characters)
+    col_0s = zeros(count_data, 'A') + zeros(count_data, 'C') + \
+        zeros(count_data, 'G') + zeros(count_data, 'T')
+    count_data['interesting'] = col_0s < 3
+    count_data['nucleotide_max'] = count_data[['A', 'C', 'G', 'T']].max(axis=1)
+    count_data['coverage'] = count_data[['A', 'C', 'G', 'T']].sum(axis=1)
+    count_data['consensus'] = '-'
     for character in characters[:-1]:
-        consensus_agreement = df['nucleotide_max'] == df[character]
-        df.loc[consensus_agreement, 'consensus'] = character
-    return pd.concat([df, df.apply(supplementary_info, axis=1)], axis=1)
+        consensus_agreement = count_data['nucleotide_max'] == count_data[character]
+        count_data.loc[consensus_agreement, 'consensus'] = character
+    return pd.concat([count_data, count_data.apply(supplementary_info, axis=1)], axis=1)
 
 
-def get_covarying_sites(alignment, threshold=.01, end_correction=10,
+def get_covarying_sites(
+        alignment, threshold=.01, end_correction=10,
         minimum_coverage=100):
+    "Determine covarying sites from alignment."
     nucleotide_counts = site_table(alignment)
     above_threshold = (
         nucleotide_counts
@@ -123,6 +132,7 @@ def get_covarying_sites(alignment, threshold=.01, end_correction=10,
 
 
 def read_reference_start_and_end(alignment, site_boundaries):
+    "Locate what covarying sites are covered by each read."
     read_information = pd.DataFrame(
         [
             (read.reference_start, read.reference_end)
@@ -140,10 +150,14 @@ def read_reference_start_and_end(alignment, site_boundaries):
 
 
 def extract_label(query_name):
-    return '-'.join(query_name.split('.')[:4]) if not '+' in query_name else 'AR'
+    "Label reads with known truth."
+    if not '+' in query_name:
+        return '-'.join(query_name.split('.')[:4])
+    return 'AR'
 
 
 def obtain_superreads(alignment, covarying_sites):
+    "Get superreads from reads."
     read_information = read_reference_start_and_end(
         alignment, covarying_sites
     )
@@ -181,7 +195,7 @@ def obtain_superreads(alignment, covarying_sites):
                 current_superread['weight'] += 1
                 current_superread['ar'] += has_ar
                 if not label in current_superread['composition']:
-                     current_superread['composition'][label] = 0
+                    current_superread['composition'][label] = 0
                 current_superread['composition'][label] += 1
                 current_superread['read_names'].append(read.query_name)
             else:
@@ -214,7 +228,8 @@ def obtain_superreads(alignment, covarying_sites):
 
 def covarying_sites_io(
         bam_path, json_path, fasta_path, csv_path, threshold=.01
-        ):
+    ):
+    "IO function for covarying sites."
     alignment = pysam.AlignmentFile(bam_path, 'rb')
     covarying_sites, consensus, count_data = get_covarying_sites(
         alignment, threshold=threshold
@@ -230,6 +245,7 @@ def covarying_sites_io(
 
 
 def covariation_input(covarying_path):
+    "Helper function for parsing covariation input."
     if covarying_path.split('.')[-1] == 'json':
         with open(covarying_path) as json_file:
             covarying_sites = np.array(json.load(json_file), dtype=np.int)
@@ -247,6 +263,7 @@ def covariation_input(covarying_path):
 
 
 def superread_json_io(bam_path, covarying_path, superread_path):
+    "IO function for creating superreads."
     covarying_sites = covariation_input(covarying_path)
     alignment = pysam.AlignmentFile(bam_path, 'rb')
 
@@ -255,38 +272,48 @@ def superread_json_io(bam_path, covarying_path, superread_path):
         json.dump(superreads, json_file, indent=2)
 
 
-def superread_fasta_io(input_cvs, input_srdata, output_fasta,
+def superread_fasta_io(
+        input_cvs, input_superreaddata, output_fasta,
         weight_filter=0, vacs_filter=0):
+    "IO function for creating superread FASTA file."
     cvs = covariation_input(input_cvs)
     with open(input_cvs) as json_file:
         cvs = json.load(json_file)
-    with open(input_srdata) as json_file:
-        srdata = json.load(json_file)
+    with open(input_superreaddata) as json_file:
+        superreaddata = json.load(json_file)
     outfile = open(output_fasta, 'w')
     n_cvs = len(cvs)
-    for sr in srdata:
-        heavy_enough = sr['weight'] > weight_filter
-        long_enough = len(sr['vacs']) > vacs_filter
+    for superread in superreaddata:
+        heavy_enough = superread['weight'] > weight_filter
+        long_enough = len(superread['vacs']) > vacs_filter
         should_write = heavy_enough and long_enough
         if should_write:
-            outfile.write('>superread-%d_weight-%d\n' % (sr['index'], sr['weight']))
-            seq = sr['cv_start']*'-' + sr['vacs'] + (n_cvs - sr['cv_end'])*'-'
+            outfile.write(
+                '>superread-%d_weight-%d\n' %
+                (superread['index'], superread['weight'])
+            )
+            seq = superread['cv_start']*'-' + \
+                superread['vacs'] + \
+                (n_cvs - superread['cv_end'])*'-'
             outfile.write(seq + '\n')
     outfile.close()
 
 
 def resolvable_regions(superreads):
+    "Determine resolvable regions from superreads."
     number_of_covarying_sites = max([
         sr['cv_end'] for sr in superreads
     ])
     pair_counts = np.zeros(number_of_covarying_sites - 1)
-    for sr in superreads:
-        pair_counts[sr['cv_start']: sr['cv_end'] - 1] += sr['weight']
+    for superread in superreads:
+        pair_counts[
+            superread['cv_start']: superread['cv_end'] - 1
+        ] += superread['weight']
     insufficient_coverage = list(np.where(pair_counts == 0)[0])
     starts = [0] + insufficient_coverage
     stops = insufficient_coverage + [number_of_covarying_sites]
     regions = [
-        { 'start': int(start), 'stop': int(stop) }
+        {'start': int(start), 'stop': int(stop)}
         for start, stop in zip(starts, stops)
     ]
     return {
@@ -296,6 +323,7 @@ def resolvable_regions(superreads):
 
 
 def resolvable_regions_io(input_srdata, output_json):
+    "IO function for determining resolvable regions."
     with open(input_srdata) as json_file:
         superreads = json.load(json_file)
     regions = resolvable_regions(superreads)

@@ -1,3 +1,4 @@
+"Command line interface."
 import os
 import sys
 import argparse
@@ -7,15 +8,15 @@ import webbrowser
 
 
 from .reads import covarying_sites_io
-from .reads import superread_json_io 
-from .reads import superread_fasta_io 
+from .reads import superread_json_io
+from .reads import superread_fasta_io
 from .reads import resolvable_regions_io
 
 from .assembly import assemble_io
 from .assembly import local_reconstruction_io
 
 
-description="""
+DESCRIPTION = """
 superseal - SUPERread Seed Expansion, Absorption, and Localization
 
 Written by Stephen D. Shank, Ph. D.
@@ -33,7 +34,10 @@ Further help:
 
 
 class Server(BaseHTTPRequestHandler):
+    "Basic HTTP server for CLI."
+    # pylint: disable=invalid-name
     def do_GET(self):
+        "Handle GET request."
         print(os.getcwd())
 
         base_dir = os.path.dirname(__file__)
@@ -48,7 +52,7 @@ class Server(BaseHTTPRequestHandler):
             path = os.path.join(base_dir, 'viz', 'index.html')
             header = "text/html"
         elif self.path[1:] in static_resources:
-            path  = os.path.join(base_dir, 'viz', self.path[1:])
+            path = os.path.join(base_dir, 'viz', self.path[1:])
             if self.path[1:] == 'style.css':
                 header = "text/css"
             elif self.path[-3:] == 'png':
@@ -67,55 +71,61 @@ class Server(BaseHTTPRequestHandler):
 
 
 def covarying_sites_cli(args):
+    "Command line interface for covarying sites."
     covarying_sites_io(
         args.bam, args.sites, args.fasta, args.csv, args.threshold
     )
 
 
 def superreads_cli(args):
+    "Command line interface for superreads."
     superread_json_io(args.bam, args.cov, args.sr)
     if args.fasta:
         superread_fasta_io(args.cov, args.sr, args.fasta)
 
 
 def resolve_cli(args):
+    "Command line interface for resolving regions."
     resolvable_regions_io(args.sr, args.rr)
 
 
 def assemble_cli(args):
+    "Command line interface for performing assembly."
     assemble_io(args.sr, args.rr, args.assembly, max_qs=args.mq)
 
 
 def local_reconstruction_cli(args):
+    "Command line interface for local reconstruction."
     local_reconstruction_io(
         args.sr, args.assem, args.con, args.var, args.reg, args.fasta
     )
 
 
-def view_cli(args):
-    myServer = HTTPServer(("localhost", 8749), Server)
+def view_cli():
+    "Command line interface for interactive result viewer."
+    server = HTTPServer(("localhost", 8749), Server)
 
     try:
         webbrowser.open("http://localhost:8749", autoraise=True)
-        myServer.serve_forever()
+        server.serve_forever()
     except KeyboardInterrupt:
         pass
 
-    myServer.server_close()
+    server.server_close()
 
 
 def command_line_interface():
+    "Full command line interface function."
     if len(sys.argv) == 1:
-        print(description)
+        print(DESCRIPTION)
         print("Usage: superseal -h or superseal --help")
         sys.exit(0)
 
     main_parser = argparse.ArgumentParser(
-        description=description,
+        description=DESCRIPTION,
         formatter_class=argparse.RawTextHelpFormatter
     )
     subparsers = main_parser.add_subparsers()
-
 
     cvs_description = "Obtain covarying sites from mapped reads."
     cvs_subparser = subparsers.add_parser(
@@ -143,7 +153,6 @@ def command_line_interface():
         type=float
     )
 
-
     sr_description = "Compress mapped reads into superreads."
     sr_subparser = subparsers.add_parser(
         "superreads", description=sr_description
@@ -170,7 +179,6 @@ def command_line_interface():
         default=None
     )
 
-
     rr_description = "Determine resolvable regions from superreads."
     rr_subparser = subparsers.add_parser(
         "resolve", description=rr_description
@@ -187,10 +195,9 @@ def command_line_interface():
         required=True
     )
 
-
     as_description = "Assemble regions."
     as_subparser = subparsers.add_parser(
-        "assemble", description=rr_description
+        "assemble", description=as_description
     )
     as_subparser.set_defaults(func=assemble_cli)
     as_subparser.add_argument(
@@ -218,7 +225,6 @@ def command_line_interface():
         default=2,
         type=int
     )
-
 
     lr_description = "Perform local reconstruction."
     lr_subparser = subparsers.add_parser(
@@ -265,13 +271,11 @@ def command_line_interface():
         required=True
     )
 
-
     view_description = "Visualize data."
     view_subparser = subparsers.add_parser(
         "view", description=view_description
     )
     view_subparser.set_defaults(func=view_cli)
-
 
     args = main_parser.parse_args()
     args.func(args)

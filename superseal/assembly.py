@@ -1,3 +1,4 @@
+"Assembling quasispecies from superreads."
 import json
 
 import numpy as np
@@ -11,11 +12,13 @@ from .io import read_json
 from .io import write_json
 
 
-character_to_index_map = { char: i for i, char in enumerate(characters) }
-index_to_character_map = { i: char for i, char in enumerate(characters) }
+character_to_index_map = {char: i for i, char in enumerate(characters)}
+index_to_character_map = characters
 
 
 class Scaffold:
+    "Scaffolds of intrahost variants."
+
     def __init__(self, superreads, members=None):
         self.members = members or {}
         self.superreads = superreads
@@ -23,44 +26,50 @@ class Scaffold:
         self.coverage = np.zeros(self.number_of_covarying_sites, dtype=np.int)
 
     def merge_node(self, superread):
+        "Add node to this scaffold."
         if superread['filtered_index'] in self.members:
             return
         indices = np.arange(superread['cv_start'], superread['cv_end'])
         self.coverage[indices] += superread['weight']
         self.members[superread['filtered_index']] = True
 
-    def handle_coverage(self, superread_i, superread_j):
-        self.handle_single_coverage(superread_i)
-        self.handle_single_coverage(superread_j)
-
     def merge_edge(self, superread_i, superread_j):
+        "Add an edge to this scaffold."
         self.merge_node(superread_i)
         self.merge_node(superread_j)
 
     def merge_scaffold(self, scaffold):
+        "Add another scaffold to this scaffold."
         for i in scaffold.members.keys():
             self.members[i] = True
         self.coverage += scaffold.coverage
 
     def check_membership(self, superread):
+        "Check if a superread is a member of this scaffold."
         return superread['filtered_index'] in self.members
 
     def check_membership_by_index(self, superread_index):
+        "Check if a superread is a member of this scaffold by its index."
         return superread_index in self.members
 
     def is_covered(self):
+        "Check if this scaffold fully covers the region."
         return np.all(self.coverage > 0)
 
     def member_superreads(self):
+        "Get all members of this scaffold."
         return [self.superreads[i] for i in self.members.keys()]
 
     def leftmost(self):
+        "Find leftmost member of this scaffold."
         return min(self.member_superreads(), key=lambda sr: sr['cv_start'])
 
     def rightmost(self):
+        "Find rightmost member of this scaffold."
         return max(self.member_superreads(), key=lambda sr: sr['cv_end'])
 
     def counts(self):
+        "Get coverage counts."
         counts = np.zeros((self.number_of_covarying_sites, 5))
         for superread_index in self.members.keys():
             superread = self.superreads[superread_index]
@@ -72,6 +81,7 @@ class Scaffold:
         return counts
 
     def consensus(self):
+        "Get consensus sequence of this scaffold."
         counts = self.counts()
         consensus = np.array(
             self.number_of_covarying_sites * ['N'], dtype='<U1'
@@ -83,21 +93,23 @@ class Scaffold:
         return consensus
 
     def extremities(self):
+        "Get extremal members of this scaffold."
         left = self.leftmost()
         right = self.rightmost()
         left_initiates = left['cv_start'] == 0
         right_terminates = right['cv_end'] == self.number_of_covarying_sites
         if left_initiates and not right_terminates:
-            return { 'left': None, 'right': right }
+            return {'left': None, 'right': right}
         elif right_terminates and not left_initiates:
-            return { 'left': left, 'right': None }
+            return {'left': left, 'right': None}
         elif left_initiates and right_terminates:
-            return { 'left': None, 'right': None }
+            return {'left': None, 'right': None}
         else:
-            return { 'left': left, 'right': right }
+            return {'left': left, 'right': right}
 
 
 def superread_filter(minimum_weight, region):
+    "Get a filter function for superreads based on weight and region."
     def the_actual_filter(superread):
         heavy_enough = superread['weight'] >= minimum_weight
         starts_after = superread['cv_start'] >= region['start']
@@ -108,6 +120,7 @@ def superread_filter(minimum_weight, region):
 
 
 def filter_superreads(superreads, minimum_weight, region):
+    "Filter superreads based on weight and region."
     filtered_superreads = list(filter(
         superread_filter(minimum_weight, region),
         superreads
@@ -122,6 +135,7 @@ def filter_superreads(superreads, minimum_weight, region):
 
 
 def check_compatability(superread_i, superread_j, minimum_overlap=2):
+    "Check whether two superreads are compatible."
     if not 'index' in superread_i or not 'index' in superread_j:
         return (False, 0)
     if superread_i['index'] == superread_j['index']:
@@ -159,6 +173,7 @@ def check_compatability(superread_i, superread_j, minimum_overlap=2):
 
 
 def get_edge_list(superreads):
+    "Get edge list from superreads."
     edge_list = []
     for i, superread_i in enumerate(superreads):
         for j, superread_j in enumerate(superreads):
@@ -176,6 +191,7 @@ def get_edge_list(superreads):
 
 
 def check_integrity(scaffolds):
+    "Ensure scaffolds are disjoint."
     for i, scaffold_i in enumerate(scaffolds):
         for member in scaffold_i.members.keys():
             for scaffold_j in scaffolds[i+1:]:
@@ -183,6 +199,7 @@ def check_integrity(scaffolds):
 
 
 def scaffold_descriptions(scaffolds, all_superreads):
+    "Get superread information about the makeup of all scaffolds."
     superreads = scaffolds[0].superreads
     number_of_covarying_sites = scaffolds[0].number_of_covarying_sites
     utilized = set([
@@ -216,11 +233,13 @@ def scaffold_descriptions(scaffolds, all_superreads):
 
 
 def invalidate_edges(edges, sr_index):
+    "Mark edges that may no longer be used."
     uses_node = (edges['i'] == sr_index) | (edges['j'] == sr_index)
     edges.loc[uses_node, 'available'] = False
 
 
-def get_initial_node(superreads, node_hash, metric):
+def get_initial_node(superreads, node_hash):
+    "Get an initial seed node."
     superread = max(
         [sr for sr in superreads if node_hash[sr['filtered_index']]],
         key=lambda sr: sr['weight']
@@ -229,7 +248,8 @@ def get_initial_node(superreads, node_hash, metric):
     return superread
 
 
-def get_nodes_for_extension(edges, scaffold, metric):
+def get_nodes_for_extension(edges, scaffold, metric='support'):
+    "Get nodes that can extended."
     extremal_nodes = scaffold.extremities()
     available_edges = edges.loc[edges.available, :]
     nodes = []
@@ -250,8 +270,10 @@ def get_nodes_for_extension(edges, scaffold, metric):
     return nodes
 
 
-def assemble_single_region(all_superreads, region, minimum_weight=5, max_qs=2,
-        verbose=True, metric='support'):
+def assemble_single_region(
+        all_superreads, region, minimum_weight=5, max_qs=2,
+        verbose=True):
+    "Assemble an individual region."
     superreads, number_of_covarying_sites = filter_superreads(
         all_superreads, minimum_weight, region
     )
@@ -263,23 +285,24 @@ def assemble_single_region(all_superreads, region, minimum_weight=5, max_qs=2,
         if verbose:
             print('Scaffold %d of %d...\n' % (i+1, max_qs), end='')
         scaffold = Scaffold(superreads)
-        initial_superread = get_initial_node(superreads, node_hash, metric)
+        initial_superread = get_initial_node(superreads, node_hash)
         if verbose:
             message = 'Seed superread for quasispecies %d: %d'
             data = (i+1, initial_superread['index'])
             print(message % data)
             print('Percent of covarying sites covered:', end='')
         scaffold.merge_node(initial_superread)
-        
+
         # Expansion
         while not scaffold.is_covered():
-            new_nodes = get_nodes_for_extension(edges, scaffold, metric)
+            new_nodes = get_nodes_for_extension(edges, scaffold)
             for node_index in new_nodes:
                 scaffold.merge_node(superreads[node_index])
                 node_hash[node_index] = False
             if verbose:
-                message = '%.2f ' 
-                data = np.sum(scaffold.coverage > 0) / number_of_covarying_sites
+                message = '%.2f '
+                data = np.sum(scaffold.coverage > 0) / \
+                    number_of_covarying_sites
                 print(message % data, end='')
 
             if len(new_nodes) == 0 and not scaffold.is_covered():
@@ -289,7 +312,7 @@ def assemble_single_region(all_superreads, region, minimum_weight=5, max_qs=2,
         if stop_early:
             if verbose:
                 print('Stopping early... unable to fully cover!')
-            return scaffold_descriptions(scaffolds[:-1])
+            return scaffold_descriptions(scaffolds[:-1], False)
 
         # Absorption
         consensus = scaffold.consensus()
@@ -312,6 +335,7 @@ def assemble_single_region(all_superreads, region, minimum_weight=5, max_qs=2,
 
 
 def assemble(all_superreads, resolution, **kwargs):
+    "Assemble all regions."
     all_descriptions = []
     for region in resolution['regions']:
         all_descriptions.append(
@@ -320,14 +344,11 @@ def assemble(all_superreads, resolution, **kwargs):
     return all_descriptions
 
 
-def localization():
-    pass
-
-
 def assemble_io(
         input_superreads, input_resolution, output_assembly, minimum_weight=5,
         max_qs=2
-        ):
+):
+    "IO function for performing assembly."
     superreads = read_json(input_superreads)
     resolution = read_json(input_resolution)
     assembly = assemble(
@@ -339,7 +360,8 @@ def assemble_io(
 
 def local_reconstruction(
         superreads, assembly, consensus, covarying_sites
-        ):
+):
+    "Reconstruct an individual region."
     number_of_quasispecies = np.sum(assembly['full_coverage'])
     number_of_covarying_sites = assembly['number_of_covarying_sites']
     covariation = [
@@ -369,7 +391,7 @@ def local_reconstruction(
     for i, qs_covariation in enumerate(covariation):
         label_content = 'quasispecies-%d_frequency-%.2f'
         label_data = (i, frequencies[i])
-        label  = label_content % label_data
+        label = label_content % label_data
         vacs = np.array(qs_covariation, dtype='<U1')
         seq = np.copy(consensus)
         seq[covarying_sites] = vacs
@@ -385,6 +407,7 @@ def local_reconstruction_io(
         input_superreads, input_assembly, input_consensus,
         input_covarying_sites, region, output_quasispecies
     ):
+    "IO function for local reconstruction."
     superreads = read_json(input_superreads)
     assembly = read_json(input_assembly)
     consensus = SeqIO.read(input_consensus, 'fasta')
@@ -398,28 +421,31 @@ def local_reconstruction_io(
 
 
 def ar_rate_estimation(superreads, description):
-    total_weight = sum([sr['weight'] for sr in superreads])
+    "Estimate AR rate from leftover superreads."
+    total_weight = sum([superread['weight'] for superread in superreads])
     ar_weight = 0
     ar_reads = []
     all_consensus = description['consensus']
-    for sr in superreads:
-        if sr['cv_end'] - sr['cv_start'] != len(sr['vacs']):
-            print('WARNING! Discordance in superread data for:', sr['index'])
+    for superread in superreads:
+        superread_length = superread['cv_end'] - superread['cv_start']
+        if superread_length != len(superread['vacs']):
+            print('WARNING! Discordance in superread data for:',
+                  superread['index'])
             continue
         matches = [0 for _ in range(len(all_consensus))]
         for qs_index, qs_consensus in enumerate(all_consensus):
-            cvs = range(sr['cv_start'], sr['cv_end'])
+            cvs = range(superread['cv_start'], superread['cv_end'])
             for vacs_index, cvs_index in enumerate(cvs):
                 qs_character = qs_consensus[cvs_index]
-                superread_character = sr['vacs'][vacs_index]
+                superread_character = superread['vacs'][vacs_index]
                 characters_agree = qs_character == superread_character
                 if characters_agree:
                     matches[qs_index] += 1
         top_matches = sorted(matches, reverse=True)[:2]
         tag_as_ar = top_matches[0] > 0 and top_matches[1] > 0
         if tag_as_ar:
-            ar_weight += sr['weight']
-            ar_reads.append(sr['index'])
+            ar_weight += superread['weight']
+            ar_reads.append(superread['index'])
     ar_rate_estimate = ar_weight / total_weight
     return {
         'ar_rate_estimate': ar_rate_estimate,
@@ -428,6 +454,7 @@ def ar_rate_estimation(superreads, description):
 
 
 def ar_rate_estimation_io(input_superreads, input_description, output_json):
+    "IO function for AR rate estimation."
     superreads = read_json(input_superreads)
     description = read_json(input_description)
     ar_info = ar_rate_estimation(superreads, description)

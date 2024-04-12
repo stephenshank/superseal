@@ -1,6 +1,6 @@
 # superseal
 
-SUPERread Seed Expansion, Absorption, and Localization. A toolkit for reference-guided viral quasispecies reconstruction. **Under development**.
+SUPERread Seed Extension, Absorption, and Localization. A toolkit for reference-guided viral quasispecies reconstruction. **Under development**.
 
 ## Install
 

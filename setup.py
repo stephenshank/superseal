@@ -17,7 +17,7 @@ setup(
         'numpy>=1.18.4',
         'pandas>=1.0.0',
         'pysam>=0.15.4',
-        'PyVCF>=0.6.8'
+        'PyVCF3>=1.0.3'
     ],
     packages=['superseal'],
     entry_points={

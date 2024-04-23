@@ -74,18 +74,20 @@ def all_read_count_data(alignment):
 
 def supplementary_info(row):
     "Get additional information derived from counts."
-    result = row.loc[['A', 'C', 'G', 'T']] \
+    counts = row.loc[['A', 'C', 'G', 'T']] \
         .sort_values(ascending=False)
-    result.index = ['c1', 'c2', 'c3', 'c4']
-    return result.append(pd.Series(
-        result.values/row['coverage'] if row['coverage'] else 0,
+    counts.index = ['c1', 'c2', 'c3', 'c4']
+    frequencies = pd.Series(
+        counts.values/row['coverage'] if row['coverage'] else 0,
         index=['f1', 'f2', 'f3', 'f4']
-    ))
+    )
+    result = pd.concat([counts, frequencies])
+    return result
 
 
 def zeros(site_data, character):
     "Count zeros associated with a nucleotide."
-    return (site_data[character] == 0).astype(np.int)
+    return (site_data[character] == 0).astype(int)
 
 
 def site_table(alignment):
@@ -248,7 +250,7 @@ def covariation_input(covarying_path):
     "Helper function for parsing covariation input."
     if covarying_path.split('.')[-1] == 'json':
         with open(covarying_path) as json_file:
-            covarying_sites = np.array(json.load(json_file), dtype=np.int)
+            covarying_sites = np.array(json.load(json_file), dtype=int)
         return covarying_sites
     vcf_reader = vcf.Reader(filename=covarying_path)
     position_counter = Counter()
